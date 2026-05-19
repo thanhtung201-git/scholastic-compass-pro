@@ -12,7 +12,17 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AppRouteImport } from './routes/_app'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AppUsersRouteImport } from './routes/_app/users'
+import { Route as AppTuitionRouteImport } from './routes/_app/tuition'
+import { Route as AppStudentsRouteImport } from './routes/_app/students'
+import { Route as AppScheduleRouteImport } from './routes/_app/schedule'
+import { Route as AppRoomsRouteImport } from './routes/_app/rooms'
+import { Route as AppPayrollRouteImport } from './routes/_app/payroll'
+import { Route as AppHomeworkRouteImport } from './routes/_app/homework'
 import { Route as AppDashboardRouteImport } from './routes/_app/dashboard'
+import { Route as AppClassesRouteImport } from './routes/_app/classes'
+import { Route as AppAuditRouteImport } from './routes/_app/audit'
+import { Route as AppAttendanceRouteImport } from './routes/_app/attendance'
 
 const AuthRoute = AuthRouteImport.update({
   id: '/auth',
@@ -28,35 +38,156 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AppUsersRoute = AppUsersRouteImport.update({
+  id: '/users',
+  path: '/users',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppTuitionRoute = AppTuitionRouteImport.update({
+  id: '/tuition',
+  path: '/tuition',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppStudentsRoute = AppStudentsRouteImport.update({
+  id: '/students',
+  path: '/students',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppScheduleRoute = AppScheduleRouteImport.update({
+  id: '/schedule',
+  path: '/schedule',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppRoomsRoute = AppRoomsRouteImport.update({
+  id: '/rooms',
+  path: '/rooms',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppPayrollRoute = AppPayrollRouteImport.update({
+  id: '/payroll',
+  path: '/payroll',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppHomeworkRoute = AppHomeworkRouteImport.update({
+  id: '/homework',
+  path: '/homework',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppDashboardRoute = AppDashboardRouteImport.update({
   id: '/dashboard',
   path: '/dashboard',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppClassesRoute = AppClassesRouteImport.update({
+  id: '/classes',
+  path: '/classes',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppAuditRoute = AppAuditRouteImport.update({
+  id: '/audit',
+  path: '/audit',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppAttendanceRoute = AppAttendanceRouteImport.update({
+  id: '/attendance',
+  path: '/attendance',
   getParentRoute: () => AppRoute,
 } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
+  '/attendance': typeof AppAttendanceRoute
+  '/audit': typeof AppAuditRoute
+  '/classes': typeof AppClassesRoute
   '/dashboard': typeof AppDashboardRoute
+  '/homework': typeof AppHomeworkRoute
+  '/payroll': typeof AppPayrollRoute
+  '/rooms': typeof AppRoomsRoute
+  '/schedule': typeof AppScheduleRoute
+  '/students': typeof AppStudentsRoute
+  '/tuition': typeof AppTuitionRoute
+  '/users': typeof AppUsersRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
+  '/attendance': typeof AppAttendanceRoute
+  '/audit': typeof AppAuditRoute
+  '/classes': typeof AppClassesRoute
   '/dashboard': typeof AppDashboardRoute
+  '/homework': typeof AppHomeworkRoute
+  '/payroll': typeof AppPayrollRoute
+  '/rooms': typeof AppRoomsRoute
+  '/schedule': typeof AppScheduleRoute
+  '/students': typeof AppStudentsRoute
+  '/tuition': typeof AppTuitionRoute
+  '/users': typeof AppUsersRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/_app': typeof AppRouteWithChildren
   '/auth': typeof AuthRoute
+  '/_app/attendance': typeof AppAttendanceRoute
+  '/_app/audit': typeof AppAuditRoute
+  '/_app/classes': typeof AppClassesRoute
   '/_app/dashboard': typeof AppDashboardRoute
+  '/_app/homework': typeof AppHomeworkRoute
+  '/_app/payroll': typeof AppPayrollRoute
+  '/_app/rooms': typeof AppRoomsRoute
+  '/_app/schedule': typeof AppScheduleRoute
+  '/_app/students': typeof AppStudentsRoute
+  '/_app/tuition': typeof AppTuitionRoute
+  '/_app/users': typeof AppUsersRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/auth' | '/dashboard'
+  fullPaths:
+    | '/'
+    | '/auth'
+    | '/attendance'
+    | '/audit'
+    | '/classes'
+    | '/dashboard'
+    | '/homework'
+    | '/payroll'
+    | '/rooms'
+    | '/schedule'
+    | '/students'
+    | '/tuition'
+    | '/users'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/auth' | '/dashboard'
-  id: '__root__' | '/' | '/_app' | '/auth' | '/_app/dashboard'
+  to:
+    | '/'
+    | '/auth'
+    | '/attendance'
+    | '/audit'
+    | '/classes'
+    | '/dashboard'
+    | '/homework'
+    | '/payroll'
+    | '/rooms'
+    | '/schedule'
+    | '/students'
+    | '/tuition'
+    | '/users'
+  id:
+    | '__root__'
+    | '/'
+    | '/_app'
+    | '/auth'
+    | '/_app/attendance'
+    | '/_app/audit'
+    | '/_app/classes'
+    | '/_app/dashboard'
+    | '/_app/homework'
+    | '/_app/payroll'
+    | '/_app/rooms'
+    | '/_app/schedule'
+    | '/_app/students'
+    | '/_app/tuition'
+    | '/_app/users'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -88,6 +219,55 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_app/users': {
+      id: '/_app/users'
+      path: '/users'
+      fullPath: '/users'
+      preLoaderRoute: typeof AppUsersRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/tuition': {
+      id: '/_app/tuition'
+      path: '/tuition'
+      fullPath: '/tuition'
+      preLoaderRoute: typeof AppTuitionRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/students': {
+      id: '/_app/students'
+      path: '/students'
+      fullPath: '/students'
+      preLoaderRoute: typeof AppStudentsRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/schedule': {
+      id: '/_app/schedule'
+      path: '/schedule'
+      fullPath: '/schedule'
+      preLoaderRoute: typeof AppScheduleRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/rooms': {
+      id: '/_app/rooms'
+      path: '/rooms'
+      fullPath: '/rooms'
+      preLoaderRoute: typeof AppRoomsRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/payroll': {
+      id: '/_app/payroll'
+      path: '/payroll'
+      fullPath: '/payroll'
+      preLoaderRoute: typeof AppPayrollRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/homework': {
+      id: '/_app/homework'
+      path: '/homework'
+      fullPath: '/homework'
+      preLoaderRoute: typeof AppHomeworkRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/dashboard': {
       id: '/_app/dashboard'
       path: '/dashboard'
@@ -95,15 +275,56 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppDashboardRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/classes': {
+      id: '/_app/classes'
+      path: '/classes'
+      fullPath: '/classes'
+      preLoaderRoute: typeof AppClassesRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/audit': {
+      id: '/_app/audit'
+      path: '/audit'
+      fullPath: '/audit'
+      preLoaderRoute: typeof AppAuditRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/attendance': {
+      id: '/_app/attendance'
+      path: '/attendance'
+      fullPath: '/attendance'
+      preLoaderRoute: typeof AppAttendanceRouteImport
+      parentRoute: typeof AppRoute
+    }
   }
 }
 
 interface AppRouteChildren {
+  AppAttendanceRoute: typeof AppAttendanceRoute
+  AppAuditRoute: typeof AppAuditRoute
+  AppClassesRoute: typeof AppClassesRoute
   AppDashboardRoute: typeof AppDashboardRoute
+  AppHomeworkRoute: typeof AppHomeworkRoute
+  AppPayrollRoute: typeof AppPayrollRoute
+  AppRoomsRoute: typeof AppRoomsRoute
+  AppScheduleRoute: typeof AppScheduleRoute
+  AppStudentsRoute: typeof AppStudentsRoute
+  AppTuitionRoute: typeof AppTuitionRoute
+  AppUsersRoute: typeof AppUsersRoute
 }
 
 const AppRouteChildren: AppRouteChildren = {
+  AppAttendanceRoute: AppAttendanceRoute,
+  AppAuditRoute: AppAuditRoute,
+  AppClassesRoute: AppClassesRoute,
   AppDashboardRoute: AppDashboardRoute,
+  AppHomeworkRoute: AppHomeworkRoute,
+  AppPayrollRoute: AppPayrollRoute,
+  AppRoomsRoute: AppRoomsRoute,
+  AppScheduleRoute: AppScheduleRoute,
+  AppStudentsRoute: AppStudentsRoute,
+  AppTuitionRoute: AppTuitionRoute,
+  AppUsersRoute: AppUsersRoute,
 }
 
 const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)
@@ -116,3 +337,13 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}
