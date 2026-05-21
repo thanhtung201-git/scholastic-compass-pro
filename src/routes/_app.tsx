@@ -7,7 +7,7 @@ import { useAuth } from "@/lib/auth-context";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { LogOut, Bell, Search } from "lucide-react";
+import { LogOut, Bell, Search, Loader2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 
 export const Route = createFileRoute("/_app")({
@@ -15,12 +15,23 @@ export const Route = createFileRoute("/_app")({
 });
 
 function AppLayout() {
-  const { user, signOut } = useAuth();
+  const { user, signOut, loading } = useAuth();
   const navigate = useNavigate();
 
   useEffect(() => {
-    if (!user) navigate({ to: "/auth" });
-  }, [user, navigate]);
+    if (!loading && !user) navigate({ to: "/auth" });
+  }, [user, loading, navigate]);
+
+  if (loading) {
+    return (
+      <div className="flex h-screen w-full items-center justify-center bg-background">
+        <div className="flex flex-col items-center gap-3">
+          <Loader2 className="size-8 animate-spin text-primary" />
+          <p className="text-xs text-muted-foreground animate-pulse">Loading system...</p>
+        </div>
+      </div>
+    );
+  }
 
   if (!user) return null;
 

@@ -9,47 +9,75 @@ import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Search, Receipt, CreditCard } from "lucide-react";
-import { tuitionInvoices, students, formatVND } from "@/lib/mock-data";
+import { Search, Receipt, CreditCard, Loader2 } from "lucide-react";
+import { useDatabase } from "@/hooks/use-database";
+import { useAuth } from "@/lib/auth-context";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/_app/tuition")({ component: TuitionPage });
 
+const formatVND = (n: number) =>
+  new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND", maximumFractionDigits: 0 }).format(n);
+
 function TuitionPage() {
+  const { tuitionInvoices, students, updateTuitionPayment, addAuditLog, loading } = useDatabase();
+  const { user: currentUser } = useAuth();
+
   const [q, setQ] = useState("");
-  const [invoices, setInvoices] = useState(tuitionInvoices);
   const [payingId, setPayingId] = useState<string | null>(null);
   const [amount, setAmount] = useState("");
   const [method, setMethod] = useState("Bank Transfer");
+  const [submitting, setSubmitting] = useState(false);
 
-  const filtered = invoices.filter((i) => {
+  const filtered = tuitionInvoices.filter((i) => {
     const s = students.find((st) => st.id === i.student_id);
-    return s?.name.toLowerCase().includes(q.toLowerCase()) || i.id.includes(q.toLowerCase());
+    return s?.name?.toLowerCase().includes(q.toLowerCase()) || i.id?.toLowerCase().includes(q.toLowerCase());
   });
 
   const totals = {
-    due: invoices.reduce((s, i) => s + i.amount_due, 0),
-    paid: invoices.reduce((s, i) => s + i.amount_paid, 0),
-    debt: invoices.reduce((s, i) => s + i.remaining_debt, 0),
+    due: tuitionInvoices.reduce((s, i) => s + Number(i.amount_due || 0), 0),
+    paid: tuitionInvoices.reduce((s, i) => s + Number(i.amount_paid || 0), 0),
+    debt: tuitionInvoices.reduce((s, i) => s + Number(i.remaining_debt || 0), 0),
   };
 
-  const paying = invoices.find((i) => i.id === payingId);
+  const paying = tuitionInvoices.find((i) => i.id === payingId);
 
-  const recordPayment = () => {
+  const recordPayment = async () => {
     if (!paying) return;
     const amt = Number(amount);
     if (!amt || amt <= 0) return toast.error("Enter a valid amount.");
-    if (amt > paying.remaining_debt) return toast.error("Amount exceeds remaining debt.");
-    setInvoices((prev) => prev.map((i) => {
-      if (i.id !== paying.id) return i;
-      const newPaid = i.amount_paid + amt;
-      const newDebt = i.amount_due - newPaid;
-      return { ...i, amount_paid: newPaid, remaining_debt: newDebt, status: newDebt === 0 ? "Paid" : "Partially Paid", payment_method: method };
-    }));
-    toast.success(`Payment of ${formatVND(amt)} recorded`);
-    setPayingId(null);
-    setAmount("");
+    if (amt > Number(paying.remaining_debt)) return toast.error("Amount exceeds remaining debt.");
+    
+    setSubmitting(true);
+    try {
+      await updateTuitionPayment(paying.id, amt, method);
+      
+      if (currentUser) {
+        const studentName = students.find((s) => s.id === paying.student_id)?.name || "Unknown";
+        await addAuditLog(
+          currentUser.name, 
+          `Recorded tuition payment of ${formatVND(amt)}`, 
+          `Student: ${studentName} (Invoice ${paying.id})`, 
+          "update"
+        );
+      }
+      
+      setPayingId(null);
+      setAmount("");
+    } catch (err: any) {
+      console.error(err);
+    } finally {
+      setSubmitting(false);
+    }
   };
+
+  if (loading && tuitionInvoices.length === 0) {
+    return (
+      <div className="flex h-[400px] w-full items-center justify-center">
+        <Loader2 className="size-8 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   return (
     <div>
@@ -87,10 +115,10 @@ function TuitionPage() {
                 return (
                   <TableRow key={i.id}>
                     <TableCell className="font-mono text-xs">{i.id}</TableCell>
-                    <TableCell className="font-medium">{stu?.name}</TableCell>
-                    <TableCell className="text-right tabular-nums">{formatVND(i.amount_due)}</TableCell>
-                    <TableCell className="text-right tabular-nums text-success">{formatVND(i.amount_paid)}</TableCell>
-                    <TableCell className="text-right tabular-nums text-destructive">{formatVND(i.remaining_debt)}</TableCell>
+                    <TableCell className="font-medium">{stu?.name || "—"}</TableCell>
+                    <TableCell className="text-right tabular-nums">{formatVND(Number(i.amount_due || 0))}</TableCell>
+                    <TableCell className="text-right tabular-nums text-success">{formatVND(Number(i.amount_paid || 0))}</TableCell>
+                    <TableCell className="text-right tabular-nums text-destructive">{formatVND(Number(i.remaining_debt || 0))}</TableCell>
                     <TableCell>
                       <Badge variant={i.status === "Paid" ? "default" : i.status === "Unpaid" ? "destructive" : "secondary"}>{i.status}</Badge>
                     </TableCell>
@@ -114,14 +142,14 @@ function TuitionPage() {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2"><Receipt className="size-5" /> Record Payment</DialogTitle>
             <DialogDescription>
-              {paying && `Invoice ${paying.id} · Remaining ${formatVND(paying.remaining_debt)}`}
+              {paying && `Invoice ${paying.id} · Remaining ${formatVND(Number(paying.remaining_debt))}`}
             </DialogDescription>
           </DialogHeader>
           {paying && (
             <div className="grid gap-4 py-2">
               <div className="rounded-lg bg-muted p-3 text-sm">
                 <div className="flex justify-between"><span className="text-muted-foreground">Student</span><span className="font-medium">{students.find((s) => s.id === paying.student_id)?.name}</span></div>
-                <div className="flex justify-between mt-1"><span className="text-muted-foreground">Outstanding</span><span className="font-semibold text-destructive">{formatVND(paying.remaining_debt)}</span></div>
+                <div className="flex justify-between mt-1"><span className="text-muted-foreground">Outstanding</span><span className="font-semibold text-destructive">{formatVND(Number(paying.remaining_debt))}</span></div>
               </div>
               <div className="space-y-2">
                 <Label htmlFor="pay-amount">Amount (VND)</Label>
@@ -143,7 +171,9 @@ function TuitionPage() {
           )}
           <DialogFooter>
             <Button variant="outline" onClick={() => setPayingId(null)}>Cancel</Button>
-            <Button onClick={recordPayment}>Confirm Payment</Button>
+            <Button onClick={recordPayment} disabled={submitting}>
+              {submitting && <Loader2 className="size-4 animate-spin mr-1" />} Confirm Payment
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

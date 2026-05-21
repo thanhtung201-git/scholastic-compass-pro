@@ -9,6 +9,7 @@ import {
 
 import appCss from "../styles.css?url";
 import { AuthProvider } from "@/lib/auth-context";
+import { DatabaseProvider } from "@/hooks/use-database";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 
@@ -81,10 +82,12 @@ function RootComponent() {
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
-        <TooltipProvider>
-          <Outlet />
-          <Toaster />
-        </TooltipProvider>
+        <DatabaseProvider>
+          <TooltipProvider>
+            <Outlet />
+            <Toaster />
+          </TooltipProvider>
+        </DatabaseProvider>
       </AuthProvider>
     </QueryClientProvider>
   );

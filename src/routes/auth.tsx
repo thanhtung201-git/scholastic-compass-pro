@@ -18,11 +18,19 @@ export const Route = createFileRoute("/auth")({
 
 function AuthPage() {
   const navigate = useNavigate();
-  const { user, signIn, signUp, switchRole } = useAuth();
+  const { user, signIn, signUp, switchRole, loading } = useAuth();
 
   useEffect(() => {
-    if (user) navigate({ to: "/dashboard" });
-  }, [user, navigate]);
+    if (!loading && user) navigate({ to: "/dashboard" });
+  }, [user, loading, navigate]);
+
+  if (loading) {
+    return (
+      <div className="flex h-screen w-full items-center justify-center bg-background">
+        <Loader2 className="size-8 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen grid lg:grid-cols-2">

@@ -2,20 +2,35 @@ import { PageHeader, StatCard } from "@/components/page-header";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Users, BookOpen, ClipboardList, Calendar, Plus, ArrowUpRight } from "lucide-react";
-import { classes, enrolments, students, schedules, teachers } from "@/lib/mock-data";
+import { Users, BookOpen, ClipboardList, Calendar, Plus, ArrowUpRight, Loader2 } from "lucide-react";
+import { useDatabase } from "@/hooks/use-database";
 import { Link } from "@tanstack/react-router";
 
 export default function AcademicDashboard() {
+  const { classes, enrolments, students, schedules, teachers, loading } = useDatabase();
   const today = new Date().toISOString().slice(0, 10);
   const todaySchedules = schedules.filter((s) => s.lesson_date === today);
+
+  if (loading) {
+    return (
+      <div className="flex h-[50vh] items-center justify-center">
+        <Loader2 className="size-8 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
       <PageHeader
         title="Academic Operations"
         description="Manage students, classes, and the master schedule."
-        actions={<Button><Plus className="size-4" /> New Class</Button>}
+        actions={
+          <Button asChild>
+            <Link to="/classes">
+              <Plus className="size-4" /> New Class
+            </Link>
+          </Button>
+        }
       />
       <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard label="Active Classes" value={classes.filter((c) => c.status === "Active").length} hint={`${classes.length} total`} icon={BookOpen} tone="info" />
@@ -44,7 +59,7 @@ export default function AcademicDashboard() {
                       <span className="font-medium text-sm">{cls.name}</span>
                       <Badge variant={cls.status === "Active" ? "default" : "secondary"} className="text-[10px]">{cls.status}</Badge>
                     </div>
-                    <div className="text-xs text-muted-foreground">{teachers.find((t) => t.id === cls.teacher_id)?.name}</div>
+                    <div className="text-xs text-muted-foreground">{teachers.find((t) => t.id === cls.teacher_id)?.name || "No Teacher"}</div>
                   </div>
                   <div className="w-32 hidden sm:block">
                     <div className="flex justify-between text-[10px] text-muted-foreground mb-1">
@@ -73,3 +88,4 @@ export default function AcademicDashboard() {
     </div>
   );
 }
+

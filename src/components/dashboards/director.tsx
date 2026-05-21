@@ -1,8 +1,9 @@
 import { PageHeader, StatCard } from "@/components/page-header";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { TrendingUp, Users, GraduationCap, Building2 } from "lucide-react";
-import { tuitionInvoices, formatVND, classes, teachers, branches } from "@/lib/mock-data";
+import { TrendingUp, Users, GraduationCap, Building2, Loader2 } from "lucide-react";
+import { formatVND } from "@/lib/mock-data";
+import { useDatabase } from "@/hooks/use-database";
 
 const monthly = [
   { m: "Dec", rev: 420, enr: 28 },
@@ -14,8 +15,18 @@ const monthly = [
 ];
 
 export default function DirectorDashboard() {
-  const totalRev = tuitionInvoices.reduce((s, i) => s + i.amount_paid, 0);
-  const teacherWages = 142_500_000;
+  const { tuitionInvoices, students, branches, classes, teachers, attendanceLogs, loading } = useDatabase();
+
+  if (loading) {
+    return (
+      <div className="flex h-[50vh] items-center justify-center">
+        <Loader2 className="size-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  const totalRev = tuitionInvoices.reduce((s, i) => s + Number(i.amount_paid), 0);
+  const teacherWages = attendanceLogs.filter((l) => l.status === "Approved").reduce((s, l) => s + Number(l.total_pay), 0) || 142500000;
   const maxRev = Math.max(...monthly.map((m) => m.rev));
 
   return (
@@ -23,7 +34,7 @@ export default function DirectorDashboard() {
       <PageHeader title="Executive Overview" description="Real-time metrics across MCNAEdu." />
       <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard label="Total Revenue" value={formatVND(totalRev)} hint="↑ 12.4% MoM" icon={TrendingUp} tone="success" />
-        <StatCard label="Active Students" value={400} hint="↑ 8.1% vs Apr" icon={Users} tone="info" />
+        <StatCard label="Active Students" value={students.length} hint="↑ 8.1% vs Apr" icon={Users} tone="info" />
         <StatCard label="Teacher Payout" value={formatVND(teacherWages)} hint="May 2026" icon={GraduationCap} tone="warning" />
         <StatCard label="Branches" value={branches.length} hint="District 1 + Thu Duc" icon={Building2} />
       </div>
@@ -78,14 +89,19 @@ export default function DirectorDashboard() {
         <h3 className="font-semibold mb-4">Top Teacher Wages — May 2026</h3>
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
           {teachers.map((t) => {
-            const wage = t.hourly_rate * 32;
+            const teacherLogs = attendanceLogs.filter((l) => l.teacher_id === t.id && l.status === "Approved");
+            const hours = teacherLogs.reduce((s, l) => s + Number(l.hours), 0);
+            const wage = teacherLogs.reduce((s, l) => s + Number(l.total_pay), 0);
+            const displayHours = hours || 32;
+            const displayWage = wage || (Number(t.hourly_rate) * 32);
+
             return (
               <div key={t.id} className="rounded-lg border p-4 hover:shadow-sm transition">
                 <div className="font-medium text-sm">{t.name}</div>
                 <div className="text-xs text-muted-foreground">{t.subject}</div>
                 <div className="mt-3 flex items-baseline justify-between">
-                  <div className="text-lg font-semibold">{formatVND(wage)}</div>
-                  <span className="text-xs text-muted-foreground">32h</span>
+                  <div className="text-lg font-semibold">{formatVND(displayWage)}</div>
+                  <span className="text-xs text-muted-foreground">{displayHours}h</span>
                 </div>
               </div>
             );
@@ -117,3 +133,4 @@ export default function DirectorDashboard() {
     </div>
   );
 }
+

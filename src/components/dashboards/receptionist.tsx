@@ -4,11 +4,12 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { DoorOpen, Users, UserPlus, Search } from "lucide-react";
-import { classrooms, schedules, classes } from "@/lib/mock-data";
+import { DoorOpen, Users, UserPlus, Search, Loader2 } from "lucide-react";
+import { useDatabase } from "@/hooks/use-database";
 import { toast } from "sonner";
 
 export default function ReceptionistDashboard() {
+  const { classrooms, schedules, classes, branches, loading } = useDatabase();
   const [query, setQuery] = useState("");
   const [guests, setGuests] = useState([
     { id: "g1", name: "Mr. Tran Van Hoang", purpose: "Parent meeting", time: "09:15" },
@@ -16,8 +17,15 @@ export default function ReceptionistDashboard() {
   ]);
   const today = new Date().toISOString().slice(0, 10);
 
-  const filtered = classrooms.filter((r) => r.name.toLowerCase().includes(query.toLowerCase()));
+  if (loading) {
+    return (
+      <div className="flex h-[50vh] items-center justify-center">
+        <Loader2 className="size-8 animate-spin text-primary" />
+      </div>
+    );
+  }
 
+  const filtered = classrooms.filter((r) => r.name.toLowerCase().includes(query.toLowerCase()));
   const roomBusy = (roomId: string) => schedules.some((s) => s.classroom_id === roomId && s.lesson_date === today);
 
   const checkIn = () => {
@@ -39,7 +47,7 @@ export default function ReceptionistDashboard() {
         <StatCard label="Rooms Available" value={classrooms.filter((r) => !roomBusy(r.id)).length} hint={`/ ${classrooms.length} total`} icon={DoorOpen} tone="success" />
         <StatCard label="Today's Visitors" value={guests.length} icon={Users} tone="info" />
         <StatCard label="Sessions Today" value={schedules.filter((s) => s.lesson_date === today).length} icon={DoorOpen} tone="warning" />
-        <StatCard label="Branches" value={2} hint="District 1 + Thu Duc" icon={Users} />
+        <StatCard label="Branches" value={branches.length} hint="Total active branches" icon={Users} />
       </div>
 
       <div className="grid lg:grid-cols-3 gap-6">
@@ -59,8 +67,8 @@ export default function ReceptionistDashboard() {
               return (
                 <div key={r.id} className={`rounded-lg border p-4 ${busy ? "bg-warning/5 border-warning/30" : "bg-success/5 border-success/30"}`}>
                   <div className="flex items-center justify-between">
-                    <div className="font-medium">{r.name}</div>
-                    <Badge variant="outline" className={busy ? "text-warning-foreground border-warning/40" : "text-success border-success/40"}>{busy ? "In use" : "Free"}</Badge>
+                     <div className="font-medium">{r.name}</div>
+                     <Badge variant="outline" className={busy ? "text-warning-foreground border-warning/40" : "text-success border-success/40"}>{busy ? "In use" : "Free"}</Badge>
                   </div>
                   <div className="text-xs text-muted-foreground mt-1">Capacity {r.capacity}</div>
                   {busy && cls && <div className="text-xs mt-2">{cls.name} · {sch?.start_time}–{sch?.end_time}</div>}
@@ -85,3 +93,4 @@ export default function ReceptionistDashboard() {
     </div>
   );
 }
+

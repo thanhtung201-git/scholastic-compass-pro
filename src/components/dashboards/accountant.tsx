@@ -2,14 +2,25 @@ import { PageHeader, StatCard } from "@/components/page-header";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Banknote, Receipt, TrendingUp, AlertCircle, ArrowUpRight } from "lucide-react";
-import { tuitionInvoices, students, formatVND, attendanceLogs } from "@/lib/mock-data";
+import { Banknote, Receipt, TrendingUp, AlertCircle, ArrowUpRight, Loader2 } from "lucide-react";
+import { formatVND } from "@/lib/mock-data";
+import { useDatabase } from "@/hooks/use-database";
 import { Link } from "@tanstack/react-router";
 
 export default function AccountantDashboard() {
-  const totalDue = tuitionInvoices.reduce((s, i) => s + i.amount_due, 0);
-  const totalPaid = tuitionInvoices.reduce((s, i) => s + i.amount_paid, 0);
-  const totalDebt = tuitionInvoices.reduce((s, i) => s + i.remaining_debt, 0);
+  const { tuitionInvoices, students, attendanceLogs, loading } = useDatabase();
+
+  if (loading) {
+    return (
+      <div className="flex h-[50vh] items-center justify-center">
+        <Loader2 className="size-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  const totalDue = tuitionInvoices.reduce((s, i) => s + Number(i.amount_due), 0);
+  const totalPaid = tuitionInvoices.reduce((s, i) => s + Number(i.amount_paid), 0);
+  const totalDebt = tuitionInvoices.reduce((s, i) => s + Number(i.remaining_debt), 0);
   const unpaid = tuitionInvoices.filter((i) => i.status !== "Paid");
   const pendingPayroll = attendanceLogs.filter((l) => l.status === "Draft");
 
@@ -35,7 +46,7 @@ export default function AccountantDashboard() {
               return (
                 <div key={inv.id} className="py-3 flex items-center gap-3">
                   <div className="flex-1 min-w-0">
-                    <div className="font-medium text-sm truncate">{stu?.name}</div>
+                    <div className="font-medium text-sm truncate">{stu?.name || "Unknown Student"}</div>
                     <div className="text-xs text-muted-foreground">{inv.id} · {inv.status}</div>
                   </div>
                   <div className="text-right">
@@ -69,3 +80,4 @@ export default function AccountantDashboard() {
     </div>
   );
 }
+

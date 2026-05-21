@@ -2,23 +2,44 @@ import { PageHeader, StatCard } from "@/components/page-header";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ClipboardCheck, ClipboardList, Banknote, Calendar, ArrowUpRight } from "lucide-react";
-import { teachers, attendanceLogs, schedules, classes, formatVND, homeworkAssignments } from "@/lib/mock-data";
+import { ClipboardCheck, ClipboardList, Banknote, Calendar, ArrowUpRight, Loader2 } from "lucide-react";
+import { formatVND } from "@/lib/mock-data";
 import { Link } from "@tanstack/react-router";
 import { useAuth } from "@/lib/auth-context";
+import { useDatabase } from "@/hooks/use-database";
 
 export default function TeacherDashboard() {
   const { user } = useAuth();
-  const me = teachers.find((t) => t.name === user?.name) ?? teachers[0];
+  const { teachers, attendanceLogs, schedules, classes, homeworkAssignments, loading } = useDatabase();
+
+  if (loading) {
+    return (
+      <div className="flex h-[50vh] items-center justify-center">
+        <Loader2 className="size-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  // Try to find the teacher record matching the user's name or email, or default to the first teacher
+  const me = teachers.find((t) => t.name === user?.name || t.email === user?.email) || teachers[0];
+
+  if (!me) {
+    return (
+      <div className="p-8 text-center text-muted-foreground">
+        No teacher profile found. Please contact administration.
+      </div>
+    );
+  }
+
   const myLogs = attendanceLogs.filter((l) => l.teacher_id === me.id);
-  const totalEarned = myLogs.filter((l) => l.status === "Approved").reduce((s, l) => s + l.total_pay, 0);
-  const pendingPay = myLogs.filter((l) => l.status === "Draft").reduce((s, l) => s + l.total_pay, 0);
+  const totalEarned = myLogs.filter((l) => l.status === "Approved").reduce((s, l) => s + Number(l.total_pay), 0);
+  const pendingPay = myLogs.filter((l) => l.status === "Draft").reduce((s, l) => s + Number(l.total_pay), 0);
   const today = new Date().toISOString().slice(0, 10);
   const upcoming = schedules.filter((s) => s.teacher_id === me.id && s.lesson_date >= today).slice(0, 5);
 
   return (
     <div className="space-y-6">
-      <PageHeader title={`Welcome, ${me.name}`} description={`${me.subject} · Hourly rate ${formatVND(me.hourly_rate)}`} />
+      <PageHeader title={`Welcome, ${me.name}`} description={`${me.subject || "Instructor"} · Hourly rate ${formatVND(me.hourly_rate)}`} />
       <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard label="Earned (Approved)" value={formatVND(totalEarned)} icon={Banknote} tone="success" />
         <StatCard label="Pending Approval" value={formatVND(pendingPay)} icon={ClipboardCheck} tone="warning" />
@@ -33,8 +54,10 @@ export default function TeacherDashboard() {
             <Button asChild variant="ghost" size="sm"><Link to="/schedule">Full calendar <ArrowUpRight className="size-3" /></Link></Button>
           </div>
           <div className="divide-y">
-            {upcoming.map((s) => {
-              const cls = classes.find((c) => c.id === s.class_id)!;
+            {upcoming.length === 0 ? (
+              <div className="text-sm text-muted-foreground text-center py-6">No upcoming lessons scheduled.</div>
+            ) : upcoming.map((s) => {
+              const cls = classes.find((c) => c.id === s.class_id);
               return (
                 <div key={s.id} className="py-3 flex items-center gap-4">
                   <div className="text-center w-14 shrink-0">
@@ -42,7 +65,7 @@ export default function TeacherDashboard() {
                     <div className="text-xl font-semibold">{new Date(s.lesson_date).getDate()}</div>
                   </div>
                   <div className="flex-1 min-w-0">
-                    <div className="font-medium text-sm">{cls.name}</div>
+                    <div className="font-medium text-sm">{cls?.name || "Class"}</div>
                     <div className="text-xs text-muted-foreground">{s.start_time}–{s.end_time}</div>
                   </div>
                   <Button asChild size="sm" variant="outline"><Link to="/attendance">Take attendance</Link></Button>
@@ -55,7 +78,9 @@ export default function TeacherDashboard() {
         <Card className="p-6">
           <h3 className="font-semibold mb-4">My Payroll Logs</h3>
           <div className="space-y-3">
-            {myLogs.slice(0, 5).map((l) => (
+            {myLogs.length === 0 ? (
+              <div className="text-sm text-muted-foreground text-center py-6">No payroll logs found.</div>
+            ) : myLogs.slice(0, 5).map((l) => (
               <div key={l.id} className="rounded-lg border p-3">
                 <div className="flex items-center justify-between text-sm">
                   <span className="font-medium">{l.lesson_date}</span>
@@ -73,3 +98,4 @@ export default function TeacherDashboard() {
     </div>
   );
 }
+

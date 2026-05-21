@@ -1,16 +1,17 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { PageHeader } from "@/components/page-header";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { ChevronLeft, ChevronRight, AlertTriangle, Plus } from "lucide-react";
-import { schedules, classes, teachers, classrooms } from "@/lib/mock-data";
+import { ChevronLeft, ChevronRight, AlertTriangle, Plus, Loader2 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useDatabase } from "@/hooks/use-database";
+import { useAuth } from "@/lib/auth-context";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/_app/schedule")({ component: SchedulePage });
@@ -23,19 +24,34 @@ function getWeekStart(d: Date) {
 }
 
 function SchedulePage() {
+  const { schedules, classes, teachers, classrooms, addSchedule, addAuditLog, loading } = useDatabase();
+  const { user: currentUser } = useAuth();
+
   const [weekStart, setWeekStart] = useState(getWeekStart(new Date()));
   const [open, setOpen] = useState(false);
-  const [draft, setDraft] = useState({ class_id: classes[0].id, room_id: classrooms[0].id, teacher_id: teachers[0].id, date: "", start: "08:00", end: "10:00" });
-  const [extra, setExtra] = useState<any[]>([]);
+  const [draft, setDraft] = useState({ class_id: "", room_id: "", teacher_id: "", date: "", start: "08:00", end: "10:00" });
+  const [submitting, setSubmitting] = useState(false);
+
+  // Set default values once data is loaded
+  useEffect(() => {
+    if (classes.length > 0 && classrooms.length > 0 && teachers.length > 0 && !draft.class_id) {
+      setDraft({
+        class_id: classes[0].id,
+        room_id: classrooms[0].id,
+        teacher_id: teachers[0].id,
+        date: new Date().toISOString().slice(0, 10),
+        start: "08:00",
+        end: "10:00"
+      });
+    }
+  }, [classes, classrooms, teachers, draft.class_id]);
 
   const days = useMemo(() => Array.from({ length: 7 }).map((_, i) => {
     const d = new Date(weekStart); d.setDate(weekStart.getDate() + i); return d;
   }), [weekStart]);
 
-  const all = [...schedules, ...extra];
-
   const conflicts = (newSch: { date: string; start: string; end: string; room_id: string; teacher_id: string }) => {
-    return all.filter((s) =>
+    return schedules.filter((s) =>
       s.lesson_date === newSch.date &&
       (s.classroom_id === newSch.room_id || s.teacher_id === newSch.teacher_id) &&
       !(newSch.end <= s.start_time || newSch.start >= s.end_time),
@@ -44,20 +60,43 @@ function SchedulePage() {
 
   const dryConflicts = draft.date ? conflicts({ date: draft.date, start: draft.start, end: draft.end, room_id: draft.room_id, teacher_id: draft.teacher_id }) : [];
 
-  const submit = () => {
+  const submit = async () => {
     if (!draft.date) return toast.error("Pick a date.");
     if (dryConflicts.length > 0) return toast.error(`Double-booking detected: ${dryConflicts.length} conflict(s).`);
-    setExtra([...extra, {
-      id: `new-${Date.now()}`,
-      ...draft,
-      lesson_date: draft.date,
-      start_time: draft.start,
-      end_time: draft.end,
-      classroom_id: draft.room_id,
-    }]);
-    toast.success("Lesson added to schedule");
-    setOpen(false);
+    
+    setSubmitting(true);
+    try {
+      const scheduleId = crypto.randomUUID();
+      await addSchedule({
+        id: scheduleId,
+        class_id: draft.class_id,
+        classroom_id: draft.room_id,
+        teacher_id: draft.teacher_id,
+        lesson_date: draft.date,
+        start_time: draft.start,
+        end_time: draft.end,
+      });
+
+      if (currentUser) {
+        const clsName = classes.find((c) => c.id === draft.class_id)?.name || "Class";
+        await addAuditLog(currentUser.name, `Scheduled lesson for ${clsName}`, `Date: ${draft.date} at ${draft.start}`, "create");
+      }
+
+      setOpen(false);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setSubmitting(false);
+    }
   };
+
+  if (loading && schedules.length === 0) {
+    return (
+      <div className="flex h-[400px] w-full items-center justify-center">
+        <Loader2 className="size-8 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   return (
     <div>
@@ -78,7 +117,7 @@ function SchedulePage() {
         <div className="grid grid-cols-7 min-w-[900px] gap-1">
           {days.map((d) => {
             const dayStr = d.toISOString().slice(0, 10);
-            const daySchedules = all.filter((s) => s.lesson_date === dayStr).sort((a, b) => a.start_time.localeCompare(b.start_time));
+            const daySchedules = schedules.filter((s) => s.lesson_date === dayStr).sort((a, b) => a.start_time.localeCompare(b.start_time));
             const isToday = dayStr === new Date().toISOString().slice(0, 10);
             return (
               <div key={dayStr} className={`rounded-lg p-2 min-h-[420px] ${isToday ? "bg-primary/5 ring-1 ring-primary/30" : "bg-muted/30"}`}>
@@ -86,16 +125,16 @@ function SchedulePage() {
                 <div className={`text-lg font-semibold ${isToday ? "text-primary" : ""}`}>{d.getDate()}</div>
                 <div className="mt-2 space-y-1.5">
                   {daySchedules.map((s) => {
-                    const cls = classes.find((c) => c.id === s.class_id)!;
+                    const cls = classes.find((c) => c.id === s.class_id);
                     const teacher = teachers.find((t) => t.id === s.teacher_id);
                     const room = classrooms.find((r) => r.id === s.classroom_id);
                     const conflict = daySchedules.some((o) => o.id !== s.id && (o.classroom_id === s.classroom_id || o.teacher_id === s.teacher_id) && !(s.end_time <= o.start_time || s.start_time >= o.end_time));
                     return (
                       <div key={s.id} className={`rounded-md p-2 text-xs border ${conflict ? "bg-destructive/10 border-destructive/40" : "bg-card border-border"}`}>
-                        <div className="font-semibold">{cls.name}</div>
+                        <div className="font-semibold">{cls?.name || s.class_id}</div>
                         <div className="text-[10px] text-muted-foreground">{s.start_time}–{s.end_time}</div>
-                        <div className="text-[10px] text-muted-foreground truncate">{teacher?.name}</div>
-                        <Badge variant="outline" className="mt-1 text-[9px]">{room?.name}</Badge>
+                        <div className="text-[10px] text-muted-foreground truncate">{teacher?.name || "—"}</div>
+                        <Badge variant="outline" className="mt-1 text-[9px]">{room?.name || "—"}</Badge>
                         {conflict && <Badge variant="destructive" className="ml-1 text-[9px]"><AlertTriangle className="size-2.5" /> Conflict</Badge>}
                       </div>
                     );
@@ -158,7 +197,9 @@ function SchedulePage() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
-            <Button onClick={submit} disabled={dryConflicts.length > 0}>Add Lesson</Button>
+            <Button onClick={submit} disabled={dryConflicts.length > 0 || submitting}>
+              {submitting && <Loader2 className="size-4 animate-spin mr-1" />} Add Lesson
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

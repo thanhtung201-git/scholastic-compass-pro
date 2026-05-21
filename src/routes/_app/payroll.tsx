@@ -4,26 +4,38 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { CheckCircle2 } from "lucide-react";
-import { attendanceLogs, teachers, formatVND } from "@/lib/mock-data";
+import { CheckCircle2, Loader2 } from "lucide-react";
+import { formatVND } from "@/lib/mock-data";
 import { useAuth } from "@/lib/auth-context";
+import { useDatabase } from "@/hooks/use-database";
 import { toast } from "sonner";
-import { useState } from "react";
 
 export const Route = createFileRoute("/_app/payroll")({ component: PayrollPage });
 
 function PayrollPage() {
   const { user } = useAuth();
+  const { attendanceLogs, teachers, saveAttendance, loading } = useDatabase();
   const canApprove = user?.role === "Accountant" || user?.role === "Admin";
-  const [logs, setLogs] = useState(attendanceLogs);
 
-  const approve = (id: string) => {
-    setLogs((l) => l.map((x) => x.id === id ? { ...x, status: "Approved" } : x));
-    toast.success("Approved for payment");
+  const approve = async (log: any) => {
+    try {
+      await saveAttendance({ ...log, status: "Approved" });
+      toast.success("Approved for payment");
+    } catch (e: any) {
+      toast.error(`Approval failed: ${e.message}`);
+    }
   };
 
-  const totalDraft = logs.filter((l) => l.status === "Draft").reduce((s, l) => s + l.total_pay, 0);
-  const totalApproved = logs.filter((l) => l.status === "Approved").reduce((s, l) => s + l.total_pay, 0);
+  if (loading) {
+    return (
+      <div className="flex h-[50vh] items-center justify-center">
+        <Loader2 className="size-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  const totalDraft = attendanceLogs.filter((l) => l.status === "Draft").reduce((s, l) => s + l.total_pay, 0);
+  const totalApproved = attendanceLogs.filter((l) => l.status === "Approved").reduce((s, l) => s + l.total_pay, 0);
 
   return (
     <div>
@@ -47,11 +59,11 @@ function PayrollPage() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {logs.map((l) => {
+            {attendanceLogs.map((l) => {
               const t = teachers.find((tt) => tt.id === l.teacher_id);
               return (
                 <TableRow key={l.id}>
-                  <TableCell className="font-medium">{t?.name}</TableCell>
+                  <TableCell className="font-medium">{t?.name || "Unknown Teacher"}</TableCell>
                   <TableCell className="text-xs">{l.class_id.toUpperCase()}</TableCell>
                   <TableCell className="text-xs">{l.lesson_date}</TableCell>
                   <TableCell className="text-right tabular-nums">{l.hours}h</TableCell>
@@ -61,7 +73,7 @@ function PayrollPage() {
                   {canApprove && (
                     <TableCell>
                       {l.status === "Draft" && (
-                        <Button size="sm" onClick={() => approve(l.id)}><CheckCircle2 className="size-3" /> Approve</Button>
+                        <Button size="sm" onClick={() => approve(l)}><CheckCircle2 className="size-3" /> Approve</Button>
                       )}
                     </TableCell>
                   )}
@@ -74,3 +86,4 @@ function PayrollPage() {
     </div>
   );
 }
+
