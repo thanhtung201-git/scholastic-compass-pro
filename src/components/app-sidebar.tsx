@@ -12,13 +12,13 @@ import type { Role } from "@/lib/types";
 interface NavItem { title: string; url: string; icon: LucideIcon; roles: Role[] }
 
 const navItems: NavItem[] = [
-  { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard, roles: ["Admin","Academic Staff","Accountant","Director","Teacher","Student","Receptionist"] },
+  { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard, roles: ["Admin","Academic Staff","Accountant","Director","Teacher","Receptionist"] },
   { title: "Students", url: "/students", icon: Users, roles: ["Admin","Academic Staff","Director"] },
-  { title: "Classes", url: "/classes", icon: BookOpen, roles: ["Admin","Academic Staff","Director","Student"] },
-  { title: "Schedule", url: "/schedule", icon: Calendar, roles: ["Admin","Academic Staff","Director","Teacher","Student"] },
+  { title: "Classes", url: "/classes", icon: BookOpen, roles: ["Admin","Academic Staff","Director"] },
+  { title: "Schedule", url: "/schedule", icon: Calendar, roles: ["Admin","Academic Staff","Director","Teacher"] },
   { title: "Attendance", url: "/attendance", icon: ClipboardCheck, roles: ["Teacher","Academic Staff","Admin"] },
-  { title: "Homework", url: "/homework", icon: ClipboardList, roles: ["Teacher","Student","Academic Staff"] },
-  { title: "Tuition", url: "/tuition", icon: Receipt, roles: ["Accountant","Admin","Director","Student"] },
+  { title: "Homework", url: "/homework", icon: ClipboardList, roles: ["Teacher","Academic Staff"] },
+  { title: "Tuition", url: "/tuition", icon: Receipt, roles: ["Accountant","Admin","Director"] },
   { title: "Payroll", url: "/payroll", icon: Banknote, roles: ["Accountant","Academic Staff","Director","Teacher","Admin"] },
   { title: "Rooms & Guests", url: "/rooms", icon: DoorOpen, roles: ["Receptionist","Admin"] },
   { title: "User Management", url: "/users", icon: Shield, roles: ["Admin"] },

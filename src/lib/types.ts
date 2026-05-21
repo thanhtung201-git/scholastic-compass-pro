@@ -4,7 +4,6 @@ export type Role =
   | "Accountant"
   | "Director"
   | "Teacher"
-  | "Student"
   | "Receptionist";
 
 export const ALL_ROLES: Role[] = [
@@ -13,7 +12,6 @@ export const ALL_ROLES: Role[] = [
   "Accountant",
   "Director",
   "Teacher",
-  "Student",
   "Receptionist",
 ];
 

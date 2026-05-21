@@ -28,12 +28,18 @@ interface DbContextType {
   updateUserRole: (id: string, role: Role) => Promise<void>;
   addStudent: (student: any) => Promise<void>;
   createClass: (cls: any) => Promise<void>;
+  updateClass: (id: string, cls: any) => Promise<void>;
+  deleteClass: (id: string) => Promise<void>;
   saveAttendance: (log: any) => Promise<void>;
   updateTuitionPayment: (invoiceId: string, amountPaid: number, method: string) => Promise<void>;
   addHomework: (homework: any) => Promise<void>;
   submitGrade: (submissionId: string, score: number, feedback: string) => Promise<void>;
   addAuditLog: (actor: string, action: string, target: string, type: string) => Promise<void>;
   addSchedule: (schedule: any) => Promise<void>;
+  updateSchedule: (id: string, schedule: any) => Promise<void>;
+  deleteSchedule: (id: string) => Promise<void>;
+  deleteStudent: (id: string) => Promise<void>;
+  deleteUser: (id: string) => Promise<void>;
 }
 
 const DbContext = createContext<DbContextType | null>(null);
@@ -456,20 +462,45 @@ export function DatabaseProvider({ children }: { children: ReactNode }) {
 
   const addStudentMutation = useMutation({
     mutationFn: async (student: any) => {
-      // 1. Insert student
-      const { error: studentErr } = await supabase
+      // Validate foreign key references exist
+      const classExists = classes.find((c) => c.id === student.enrolled_class);
+      if (!classExists) {
+        throw new Error(`Class with ID ${student.enrolled_class} does not exist`);
+      }
+      
+      const branchExists = branches.find((b) => b.id === student.branch_id);
+      if (!branchExists) {
+        throw new Error(`Branch with ID ${student.branch_id} does not exist`);
+      }
+
+      // 1. Insert student WITHOUT id to avoid foreign key constraint
+      // Supabase will auto-generate UUID if needed
+      const studentData = {
+        name: student.name,
+        email: student.email,
+        phone: student.phone || "—",
+        parent_name: student.parent_name || "—",
+        enrolled_class: student.enrolled_class,
+        branch_id: student.branch_id
+      };
+      
+      const { data: insertedStudent, error: studentErr } = await supabase
         .from("students")
-        .insert([student]);
+        .insert([studentData])
+        .select();
       if (studentErr) throw studentErr;
+      
+      const studentId = insertedStudent?.[0]?.id;
+      if (!studentId) throw new Error("Failed to get student ID after insert");
 
       // 2. Create enrolment record automatically
-      const cls = classes.find((c) => c.id === student.enrolled_class);
+      const cls = classExists;
       const course = courses.find((co) => co.id === cls?.course_id);
       const totalDue = course?.price || 0;
       
       const enrolment = {
         id: crypto.randomUUID(),
-        student_id: student.id,
+        student_id: studentId,
         class_id: student.enrolled_class,
         status: "Active",
         tuition_status: "Unpaid",
@@ -486,7 +517,7 @@ export function DatabaseProvider({ children }: { children: ReactNode }) {
       const invoice = {
         id: crypto.randomUUID(),
         enrolment_id: enrolment.id,
-        student_id: student.id,
+        student_id: studentId,
         amount_due: totalDue,
         amount_paid: 0,
         remaining_debt: totalDue,
@@ -523,6 +554,34 @@ export function DatabaseProvider({ children }: { children: ReactNode }) {
     },
     onError: (err) => {
       toast.error(`Failed to create class: ${err.message}`);
+    }
+  });
+
+  const updateClassMutation = useMutation({
+    mutationFn: async ({ id, cls }: { id: string; cls: any }) => {
+      const { error } = await supabase.from("classes").update(cls).eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["classes"] });
+      toast.success("Class updated successfully!");
+    },
+    onError: (err) => {
+      toast.error(`Failed to update class: ${err.message}`);
+    }
+  });
+
+  const deleteClassMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from("classes").delete().eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["classes"] });
+      toast.success("Class deleted successfully!");
+    },
+    onError: (err) => {
+      toast.error(`Failed to delete class: ${err.message}`);
     }
   });
 
@@ -654,6 +713,62 @@ export function DatabaseProvider({ children }: { children: ReactNode }) {
     }
   });
 
+  const updateScheduleMutation = useMutation({
+    mutationFn: async ({ id, schedule }: { id: string; schedule: any }) => {
+      const { error } = await supabase.from("schedules").update(schedule).eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["schedules"] });
+      toast.success("Schedule updated successfully!");
+    },
+    onError: (err) => {
+      toast.error(`Failed to update schedule: ${err.message}`);
+    }
+  });
+
+  const deleteScheduleMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from("schedules").delete().eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["schedules"] });
+      toast.success("Schedule deleted successfully!");
+    },
+    onError: (err) => {
+      toast.error(`Failed to delete schedule: ${err.message}`);
+    }
+  });
+
+  const deleteStudentMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from("students").delete().eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["students"] });
+      toast.success("Student deleted successfully!");
+    },
+    onError: (err) => {
+      toast.error(`Failed to delete student: ${err.message}`);
+    }
+  });
+
+  const deleteUserMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from("users").delete().eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["users"] });
+      toast.success("User deleted successfully!");
+    },
+    onError: (err) => {
+      toast.error(`Failed to delete user: ${err.message}`);
+    }
+  });
+
   const toggleUserStatus = async (id: string, currentStatus: string) => {
     const status = currentStatus === "Active" ? "Blocked" : "Active";
     await toggleUserStatusMutation.mutateAsync({ id, status });
@@ -669,6 +784,14 @@ export function DatabaseProvider({ children }: { children: ReactNode }) {
 
   const createClass = async (cls: any) => {
     await createClassMutation.mutateAsync(cls);
+  };
+
+  const updateClass = async (id: string, cls: any) => {
+    await updateClassMutation.mutateAsync({ id, cls });
+  };
+
+  const deleteClass = async (id: string) => {
+    await deleteClassMutation.mutateAsync(id);
   };
 
   const saveAttendance = async (log: any) => {
@@ -703,6 +826,22 @@ export function DatabaseProvider({ children }: { children: ReactNode }) {
     await addScheduleMutation.mutateAsync(schedule);
   };
 
+  const updateSchedule = async (id: string, schedule: any) => {
+    await updateScheduleMutation.mutateAsync({ id, schedule });
+  };
+
+  const deleteSchedule = async (id: string) => {
+    await deleteScheduleMutation.mutateAsync(id);
+  };
+
+  const deleteStudent = async (id: string) => {
+    await deleteStudentMutation.mutateAsync(id);
+  };
+
+  const deleteUser = async (id: string) => {
+    await deleteUserMutation.mutateAsync(id);
+  };
+
   return (
     <DbContext.Provider
       value={{
@@ -726,12 +865,18 @@ export function DatabaseProvider({ children }: { children: ReactNode }) {
         updateUserRole,
         addStudent,
         createClass,
+        updateClass,
+        deleteClass,
         saveAttendance,
         updateTuitionPayment,
         addHomework,
         submitGrade,
         addAuditLog,
-        addSchedule
+        addSchedule,
+        updateSchedule,
+        deleteSchedule,
+        deleteStudent,
+        deleteUser
       }}
     >
       {children}
