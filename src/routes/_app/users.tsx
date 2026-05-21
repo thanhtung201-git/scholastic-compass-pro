@@ -7,14 +7,14 @@ import { Switch } from "@/components/ui/switch";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useDatabase } from "@/hooks/use-database";
 import { useAuth } from "@/lib/auth-context";
-import { Loader2 } from "lucide-react";
+import { Loader2, Trash2 } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ALL_ROLES, type Role } from "@/lib/types";
 
 export const Route = createFileRoute("/_app/users")({ component: UsersPage });
 
 function UsersPage() {
-  const { users, branches, toggleUserStatus, updateUserRole, addAuditLog, loading } = useDatabase();
+  const { users, branches, toggleUserStatus, updateUserRole, addAuditLog, deleteUser, loading } = useDatabase();
   const { user: currentUser } = useAuth();
 
   const toggle = async (id: string, currentStatus: string, email: string) => {
@@ -45,7 +45,8 @@ function UsersPage() {
               <TableHead>Role</TableHead>
               <TableHead>Branch</TableHead>
               <TableHead>Status</TableHead>
-              <TableHead className="w-32">Active</TableHead>
+              <TableHead className="w-20">Active</TableHead>
+              <TableHead className="w-16"></TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -84,6 +85,18 @@ function UsersPage() {
                     checked={u.status === "Active"} 
                     onCheckedChange={() => toggle(u.id, u.status, u.email)} 
                   />
+                </TableCell>
+                <TableCell>
+                  <Button variant="ghost" size="icon" onClick={async () => {
+                    if (confirm("Are you sure you want to delete this user?")) {
+                      await deleteUser(u.id);
+                      if (currentUser) {
+                        await addAuditLog(currentUser.name, `Deleted user ${u.name}`, u.email, "security");
+                      }
+                    }
+                  }}>
+                    <Trash2 className="size-4 text-destructive" />
+                  </Button>
                 </TableCell>
               </TableRow>
             ))}

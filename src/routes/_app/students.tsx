@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Search, Plus, Mail, Phone, Loader2 } from "lucide-react";
+import { Search, Plus, Mail, Phone, Loader2, Trash2 } from "lucide-react";
 import { useDatabase } from "@/hooks/use-database";
 import { useAuth } from "@/lib/auth-context";
 
@@ -17,7 +17,7 @@ export const Route = createFileRoute("/_app/students")({ component: StudentsPage
 
 function StudentsPage() {
   const [q, setQ] = useState("");
-  const { students, classes, branches, enrolments, addStudent, addAuditLog, loading } = useDatabase();
+  const { students, classes, branches, enrolments, addStudent, addAuditLog, deleteStudent, loading } = useDatabase();
   const { user: currentUser } = useAuth();
   
   // Form State
@@ -165,6 +165,7 @@ function StudentsPage() {
                 <TableHead>Class</TableHead>
                 <TableHead>Branch</TableHead>
                 <TableHead>Tuition</TableHead>
+                <TableHead className="w-16"></TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -190,6 +191,18 @@ function StudentsPage() {
                       >
                         {enrol?.tuition_status || "Unpaid"}
                       </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <Button variant="ghost" size="icon" onClick={async () => {
+                        if (confirm("Are you sure you want to delete this student?")) {
+                          await deleteStudent(s.id);
+                          if (currentUser) {
+                            await addAuditLog(currentUser.name, `Deleted student ${s.name}`, s.email, "security");
+                          }
+                        }
+                      }}>
+                        <Trash2 className="size-4 text-destructive" />
+                      </Button>
                     </TableCell>
                   </TableRow>
                 );

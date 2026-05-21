@@ -28,12 +28,18 @@ interface DbContextType {
   updateUserRole: (id: string, role: Role) => Promise<void>;
   addStudent: (student: any) => Promise<void>;
   createClass: (cls: any) => Promise<void>;
+  updateClass: (id: string, cls: any) => Promise<void>;
+  deleteClass: (id: string) => Promise<void>;
   saveAttendance: (log: any) => Promise<void>;
   updateTuitionPayment: (invoiceId: string, amountPaid: number, method: string) => Promise<void>;
   addHomework: (homework: any) => Promise<void>;
   submitGrade: (submissionId: string, score: number, feedback: string) => Promise<void>;
   addAuditLog: (actor: string, action: string, target: string, type: string) => Promise<void>;
   addSchedule: (schedule: any) => Promise<void>;
+  updateSchedule: (id: string, schedule: any) => Promise<void>;
+  deleteSchedule: (id: string) => Promise<void>;
+  deleteStudent: (id: string) => Promise<void>;
+  deleteUser: (id: string) => Promise<void>;
 }
 
 const DbContext = createContext<DbContextType | null>(null);
@@ -526,6 +532,34 @@ export function DatabaseProvider({ children }: { children: ReactNode }) {
     }
   });
 
+  const updateClassMutation = useMutation({
+    mutationFn: async ({ id, cls }: { id: string; cls: any }) => {
+      const { error } = await supabase.from("classes").update(cls).eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["classes"] });
+      toast.success("Class updated successfully!");
+    },
+    onError: (err) => {
+      toast.error(`Failed to update class: ${err.message}`);
+    }
+  });
+
+  const deleteClassMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from("classes").delete().eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["classes"] });
+      toast.success("Class deleted successfully!");
+    },
+    onError: (err) => {
+      toast.error(`Failed to delete class: ${err.message}`);
+    }
+  });
+
   const saveAttendanceMutation = useMutation({
     mutationFn: async (log: any) => {
       const { error } = await supabase
@@ -654,6 +688,62 @@ export function DatabaseProvider({ children }: { children: ReactNode }) {
     }
   });
 
+  const updateScheduleMutation = useMutation({
+    mutationFn: async ({ id, schedule }: { id: string; schedule: any }) => {
+      const { error } = await supabase.from("schedules").update(schedule).eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["schedules"] });
+      toast.success("Schedule updated successfully!");
+    },
+    onError: (err) => {
+      toast.error(`Failed to update schedule: ${err.message}`);
+    }
+  });
+
+  const deleteScheduleMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from("schedules").delete().eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["schedules"] });
+      toast.success("Schedule deleted successfully!");
+    },
+    onError: (err) => {
+      toast.error(`Failed to delete schedule: ${err.message}`);
+    }
+  });
+
+  const deleteStudentMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from("students").delete().eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["students"] });
+      toast.success("Student deleted successfully!");
+    },
+    onError: (err) => {
+      toast.error(`Failed to delete student: ${err.message}`);
+    }
+  });
+
+  const deleteUserMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from("users").delete().eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["users"] });
+      toast.success("User deleted successfully!");
+    },
+    onError: (err) => {
+      toast.error(`Failed to delete user: ${err.message}`);
+    }
+  });
+
   const toggleUserStatus = async (id: string, currentStatus: string) => {
     const status = currentStatus === "Active" ? "Blocked" : "Active";
     await toggleUserStatusMutation.mutateAsync({ id, status });
@@ -669,6 +759,14 @@ export function DatabaseProvider({ children }: { children: ReactNode }) {
 
   const createClass = async (cls: any) => {
     await createClassMutation.mutateAsync(cls);
+  };
+
+  const updateClass = async (id: string, cls: any) => {
+    await updateClassMutation.mutateAsync({ id, cls });
+  };
+
+  const deleteClass = async (id: string) => {
+    await deleteClassMutation.mutateAsync(id);
   };
 
   const saveAttendance = async (log: any) => {
@@ -703,6 +801,22 @@ export function DatabaseProvider({ children }: { children: ReactNode }) {
     await addScheduleMutation.mutateAsync(schedule);
   };
 
+  const updateSchedule = async (id: string, schedule: any) => {
+    await updateScheduleMutation.mutateAsync({ id, schedule });
+  };
+
+  const deleteSchedule = async (id: string) => {
+    await deleteScheduleMutation.mutateAsync(id);
+  };
+
+  const deleteStudent = async (id: string) => {
+    await deleteStudentMutation.mutateAsync(id);
+  };
+
+  const deleteUser = async (id: string) => {
+    await deleteUserMutation.mutateAsync(id);
+  };
+
   return (
     <DbContext.Provider
       value={{
@@ -726,12 +840,18 @@ export function DatabaseProvider({ children }: { children: ReactNode }) {
         updateUserRole,
         addStudent,
         createClass,
+        updateClass,
+        deleteClass,
         saveAttendance,
         updateTuitionPayment,
         addHomework,
         submitGrade,
         addAuditLog,
-        addSchedule
+        addSchedule,
+        updateSchedule,
+        deleteSchedule,
+        deleteStudent,
+        deleteUser
       }}
     >
       {children}
