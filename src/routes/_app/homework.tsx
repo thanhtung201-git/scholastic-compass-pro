@@ -20,7 +20,7 @@ export const Route = createFileRoute("/_app/homework")({ component: HomeworkPage
 
 function HomeworkPage() {
   const { user } = useAuth();
-  const isStudent = user?.role === "Student";
+  const isTeacher = user?.role === "Teacher";
   const { loading } = useDatabase();
 
   if (loading) {
@@ -33,21 +33,18 @@ function HomeworkPage() {
 
   return (
     <div>
-      <PageHeader title="Homework & Grading" description={isStudent ? "Track assignments and submit your work." : "Manage assignments and grade submissions."} />
-      <Tabs defaultValue={isStudent ? "submit" : "grade"}>
+      <PageHeader title="Homework & Grading" description={!isTeacher ? "Track assignments and submissions." : "Manage assignments and grade submissions."} />
+      <Tabs defaultValue={isTeacher ? "grade" : "assignments"}>
         <TabsList>
-          {!isStudent && <TabsTrigger value="grade">Grading Grid</TabsTrigger>}
+          {isTeacher && <TabsTrigger value="grade">Grading Grid</TabsTrigger>}
           <TabsTrigger value="assignments">Assignments</TabsTrigger>
-          {isStudent && <TabsTrigger value="submit">Submit Work</TabsTrigger>}
         </TabsList>
 
-        {!isStudent && <TabsContent value="grade" className="mt-4"><GradingGrid /></TabsContent>}
+        {isTeacher && <TabsContent value="grade" className="mt-4"><GradingGrid /></TabsContent>}
 
         <TabsContent value="assignments" className="mt-4">
           <AssignmentsList />
         </TabsContent>
-
-        {isStudent && <TabsContent value="submit" className="mt-4"><StudentSubmissions /></TabsContent>}
       </Tabs>
     </div>
   );
@@ -250,27 +247,6 @@ function AssignmentsList() {
           </form>
         </DialogContent>
       </Dialog>
-    </div>
-  );
-}
-
-function StudentSubmissions() {
-  const { homeworkAssignments } = useDatabase();
-  const [text, setText] = useState("");
-  return (
-    <div className="grid lg:grid-cols-2 gap-4">
-      {homeworkAssignments.slice(0, 3).map((a) => (
-        <Card key={a.id} className="p-5">
-          <h3 className="font-semibold">{a.title}</h3>
-          <p className="text-xs text-muted-foreground mt-1">{a.description}</p>
-          <div className="text-xs text-muted-foreground mt-2">Due {a.due_date}</div>
-          <Textarea value={text} onChange={(e) => setText(e.target.value)} placeholder="Type your answer or paste a link…" className="mt-3 min-h-[100px]" />
-          <div className="flex gap-2 mt-3">
-            <Button size="sm" onClick={() => toast.success("Submission sent!")}><Upload className="size-3 mr-1" /> Submit</Button>
-            <Button size="sm" variant="outline">Save Draft</Button>
-          </div>
-        </Card>
-      ))}
     </div>
   );
 }

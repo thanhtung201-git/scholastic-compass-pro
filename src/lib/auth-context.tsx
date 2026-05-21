@@ -74,7 +74,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             id: userId,
             name: authUser.user_metadata.name || authUser.email?.split("@")[0] || "User",
             email: authUser.email || "",
-            role: authUser.user_metadata.role || "Student",
+            role: authUser.user_metadata.role || "Teacher",
             branch_id: "b1",
             status: "Active"
           };

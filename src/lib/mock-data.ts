@@ -11,7 +11,6 @@ export const mockUsers: MockUser[] = [
   { id: "u3", name: "Pham Hoang Nam", email: "accountant@mcnaedu.vn", role: "Accountant", branch_id: "b1", status: "Active" },
   { id: "u4", name: "Le Van Director", email: "director@mcnaedu.vn", role: "Director", branch_id: "b1", status: "Active" },
   { id: "u5", name: "Mr. David Johnson", email: "teacher@mcnaedu.vn", role: "Teacher", branch_id: "b1", status: "Active" },
-  { id: "u6", name: "Hoang Bao An (Parent)", email: "student@mcnaedu.vn", role: "Student", branch_id: "b1", status: "Active" },
   { id: "u7", name: "Vu Thi Mai", email: "reception@mcnaedu.vn", role: "Receptionist", branch_id: "b2", status: "Active" },
 ];
 

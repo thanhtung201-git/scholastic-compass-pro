@@ -5,11 +5,12 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { ChevronLeft, ChevronRight, AlertTriangle, Plus, Loader2 } from "lucide-react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { ChevronLeft, ChevronRight, AlertTriangle, Plus, Loader2, MoreHorizontal, Pencil, Trash2 } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { useDatabase } from "@/hooks/use-database";
 import { useAuth } from "@/lib/auth-context";
 import { toast } from "sonner";
@@ -24,7 +25,7 @@ function getWeekStart(d: Date) {
 }
 
 function SchedulePage() {
-  const { schedules, classes, teachers, classrooms, addSchedule, addAuditLog, loading } = useDatabase();
+  const { schedules, classes, teachers, classrooms, addSchedule, updateSchedule, deleteSchedule, addAuditLog, loading } = useDatabase();
   const { user: currentUser } = useAuth();
 
   const [weekStart, setWeekStart] = useState(getWeekStart(new Date()));
@@ -131,7 +132,91 @@ function SchedulePage() {
                     const conflict = daySchedules.some((o) => o.id !== s.id && (o.classroom_id === s.classroom_id || o.teacher_id === s.teacher_id) && !(s.end_time <= o.start_time || s.start_time >= o.end_time));
                     return (
                       <div key={s.id} className={`rounded-md p-2 text-xs border ${conflict ? "bg-destructive/10 border-destructive/40" : "bg-card border-border"}`}>
-                        <div className="font-semibold">{cls?.name || s.class_id}</div>
+                        <div className="flex items-start justify-between gap-1">
+                          <div className="font-semibold truncate">{cls?.name || s.class_id}</div>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <button className="text-muted-foreground hover:text-foreground"><MoreHorizontal className="size-3" /></button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <Dialog>
+                                <DialogTrigger asChild>
+                                  <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
+                                    <Pencil className="size-3 mr-2" /> Edit
+                                  </DropdownMenuItem>
+                                </DialogTrigger>
+                                <DialogContent>
+                                  <DialogHeader><DialogTitle>Edit Lesson</DialogTitle></DialogHeader>
+                                  <form onSubmit={async (e) => {
+                                    e.preventDefault();
+                                    const fd = new FormData(e.currentTarget);
+                                    await updateSchedule(s.id, {
+                                      class_id: fd.get("class_id"),
+                                      classroom_id: fd.get("room_id"),
+                                      teacher_id: fd.get("teacher_id"),
+                                      lesson_date: fd.get("date"),
+                                      start_time: fd.get("start"),
+                                      end_time: fd.get("end")
+                                    });
+                                    if (currentUser) {
+                                      await addAuditLog(currentUser.name, `Updated lesson for ${cls?.name}`, `Date: ${fd.get("date")}`, "update");
+                                    }
+                                    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+                                  }} className="grid gap-4 py-2">
+                                    <div className="grid grid-cols-2 gap-3">
+                                      <div className="space-y-2">
+                                        <Label>Class</Label>
+                                        <Select name="class_id" defaultValue={s.class_id}>
+                                          <SelectTrigger><SelectValue /></SelectTrigger>
+                                          <SelectContent>{classes.map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent>
+                                        </Select>
+                                      </div>
+                                      <div className="space-y-2">
+                                        <Label>Date</Label>
+                                        <Input type="date" name="date" defaultValue={s.lesson_date} required />
+                                      </div>
+                                      <div className="space-y-2">
+                                        <Label>Teacher</Label>
+                                        <Select name="teacher_id" defaultValue={s.teacher_id}>
+                                          <SelectTrigger><SelectValue /></SelectTrigger>
+                                          <SelectContent>{teachers.map((t) => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}</SelectContent>
+                                        </Select>
+                                      </div>
+                                      <div className="space-y-2">
+                                        <Label>Room</Label>
+                                        <Select name="room_id" defaultValue={s.classroom_id}>
+                                          <SelectTrigger><SelectValue /></SelectTrigger>
+                                          <SelectContent>{classrooms.map((r) => <SelectItem key={r.id} value={r.id}>{r.name}</SelectItem>)}</SelectContent>
+                                        </Select>
+                                      </div>
+                                      <div className="space-y-2">
+                                        <Label>Start</Label>
+                                        <Input type="time" name="start" defaultValue={s.start_time} required />
+                                      </div>
+                                      <div className="space-y-2">
+                                        <Label>End</Label>
+                                        <Input type="time" name="end" defaultValue={s.end_time} required />
+                                      </div>
+                                    </div>
+                                    <DialogFooter>
+                                      <Button type="submit">Save Changes</Button>
+                                    </DialogFooter>
+                                  </form>
+                                </DialogContent>
+                              </Dialog>
+                              <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={async () => {
+                                if (confirm("Delete this lesson?")) {
+                                  await deleteSchedule(s.id);
+                                  if (currentUser) {
+                                    await addAuditLog(currentUser.name, `Deleted lesson for ${cls?.name}`, `Date: ${s.lesson_date}`, "security");
+                                  }
+                                }
+                              }}>
+                                <Trash2 className="size-3 mr-2" /> Delete
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </div>
                         <div className="text-[10px] text-muted-foreground">{s.start_time}–{s.end_time}</div>
                         <div className="text-[10px] text-muted-foreground truncate">{teacher?.name || "—"}</div>
                         <Badge variant="outline" className="mt-1 text-[9px]">{room?.name || "—"}</Badge>

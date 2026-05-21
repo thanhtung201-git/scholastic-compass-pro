@@ -143,7 +143,7 @@ function SignUpForm({ onSubmit, onSuccess }: { onSubmit: ReturnType<typeof useAu
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
-  const [role, setRole] = useState<Role>("Student");
+  const [role, setRole] = useState<Role>("Teacher");
   const [loading, setLoading] = useState(false);
 
   const submit = async (e: React.FormEvent) => {

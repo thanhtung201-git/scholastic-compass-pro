@@ -8,7 +8,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Plus, Calendar, Users, Loader2 } from "lucide-react";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { Plus, Calendar, Users, Loader2, MoreHorizontal, Pencil, Trash2 } from "lucide-react";
 import { useDatabase } from "@/hooks/use-database";
 import { useAuth } from "@/lib/auth-context";
 
@@ -18,7 +19,7 @@ const formatVND = (n: number) =>
   new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND", maximumFractionDigits: 0 }).format(n);
 
 function ClassesPage() {
-  const { classes, courses, teachers, classrooms, enrolments, branches, createClass, addAuditLog, loading } = useDatabase();
+  const { classes, courses, teachers, classrooms, enrolments, branches, createClass, updateClass, deleteClass, addAuditLog, loading } = useDatabase();
   const { user: currentUser } = useAuth();
 
   // Form State
@@ -175,16 +176,135 @@ function ClassesPage() {
           const enrolled = enrolments.filter((e) => e.class_id === c.id && e.status === "Active").length;
           const fill = c.max_capacity > 0 ? (enrolled / c.max_capacity) * 100 : 0;
           return (
-            <Card key={c.id} className="p-5">
+            <Card key={c.id} className="p-5 flex flex-col">
               <div className="flex items-start justify-between">
                 <div>
                   <Badge variant={c.status === "Active" ? "default" : "secondary"} className="mb-2 text-[10px]">{c.status}</Badge>
-                  <h3 className="font-semibold">{c.name}</h3>
+                  <div className="flex items-center gap-2">
+                    <h3 className="font-semibold">{c.name}</h3>
+                  </div>
                   <p className="text-xs text-muted-foreground">{course?.name || "—"}</p>
                 </div>
-                <div className="text-right">
-                  <div className="text-sm font-semibold">{course ? formatVND(course.price) : "—"}</div>
-                  <div className="text-[10px] text-muted-foreground">per term</div>
+                <div className="text-right flex items-start gap-2">
+                  <div>
+                    <div className="text-sm font-semibold">{course ? formatVND(course.price) : "—"}</div>
+                    <div className="text-[10px] text-muted-foreground">per term</div>
+                  </div>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="ghost" size="icon" className="size-7 -mr-2"><MoreHorizontal className="size-4" /></Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <Dialog>
+                        <DialogTrigger asChild>
+                          <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
+                            <Pencil className="size-4 mr-2" /> Edit Class
+                          </DropdownMenuItem>
+                        </DialogTrigger>
+                        <DialogContent className="sm:max-w-[425px]">
+                          <DialogHeader>
+                            <DialogTitle>Edit Class</DialogTitle>
+                            <DialogDescription>Update class details.</DialogDescription>
+                          </DialogHeader>
+                          <form onSubmit={async (e) => {
+                            e.preventDefault();
+                            const fd = new FormData(e.currentTarget);
+                            await updateClass(c.id, {
+                              name: fd.get("name"),
+                              course_id: fd.get("courseId"),
+                              teacher_id: fd.get("teacherId"),
+                              room_id: fd.get("roomId"),
+                              branch_id: fd.get("branchId"),
+                              start_date: fd.get("startDate"),
+                              max_capacity: Number(fd.get("maxCapacity")),
+                              status: fd.get("status")
+                            });
+                            if (currentUser) {
+                              await addAuditLog(currentUser.name, `Updated class ${c.name}`, `Class ID: ${c.id}`, "update");
+                            }
+                            // To close the dialog automatically, we'd need controlled state, but for MVP re-fetching or clicking out works.
+                            document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+                          }} className="space-y-4 pt-4">
+                            <div className="space-y-1">
+                              <Label htmlFor={`name-${c.id}`}>Class Name</Label>
+                              <Input id={`name-${c.id}`} name="name" required defaultValue={c.name} />
+                            </div>
+                            <div className="space-y-1">
+                              <Label>Course Offering</Label>
+                              <Select name="courseId" defaultValue={c.course_id} required>
+                                <SelectTrigger><SelectValue /></SelectTrigger>
+                                <SelectContent>
+                                  {courses.map((co) => <SelectItem key={co.id} value={co.id}>{co.name}</SelectItem>)}
+                                </SelectContent>
+                              </Select>
+                            </div>
+                            <div className="space-y-1">
+                              <Label>Teacher</Label>
+                              <Select name="teacherId" defaultValue={c.teacher_id} required>
+                                <SelectTrigger><SelectValue /></SelectTrigger>
+                                <SelectContent>
+                                  {teachers.map((t) => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}
+                                </SelectContent>
+                              </Select>
+                            </div>
+                            <div className="grid grid-cols-2 gap-3">
+                              <div className="space-y-1">
+                                <Label>Classroom</Label>
+                                <Select name="roomId" defaultValue={c.room_id} required>
+                                  <SelectTrigger><SelectValue /></SelectTrigger>
+                                  <SelectContent>
+                                    {classrooms.map((r) => <SelectItem key={r.id} value={r.id}>{r.name}</SelectItem>)}
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                              <div className="space-y-1">
+                                <Label>Branch</Label>
+                                <Select name="branchId" defaultValue={c.branch_id} required>
+                                  <SelectTrigger><SelectValue /></SelectTrigger>
+                                  <SelectContent>
+                                    {branches.map((b) => <SelectItem key={b.id} value={b.id}>{b.name.replace("MCNAEdu — ", "")}</SelectItem>)}
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                            </div>
+                            <div className="grid grid-cols-3 gap-3">
+                              <div className="space-y-1">
+                                <Label htmlFor={`start-${c.id}`}>Start Date</Label>
+                                <Input id={`start-${c.id}`} name="startDate" type="date" required defaultValue={c.start_date} />
+                              </div>
+                              <div className="space-y-1">
+                                <Label htmlFor={`cap-${c.id}`}>Capacity</Label>
+                                <Input id={`cap-${c.id}`} name="maxCapacity" type="number" required min="1" defaultValue={c.max_capacity} />
+                              </div>
+                              <div className="space-y-1">
+                                <Label>Status</Label>
+                                <Select name="status" defaultValue={c.status} required>
+                                  <SelectTrigger><SelectValue /></SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="Active">Active</SelectItem>
+                                    <SelectItem value="Ended">Ended</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                            </div>
+                            <DialogFooter className="pt-4">
+                              <Button type="submit">Save Changes</Button>
+                            </DialogFooter>
+                          </form>
+                        </DialogContent>
+                      </Dialog>
+                      <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={async () => {
+                        if (confirm(`Are you sure you want to delete ${c.name}?`)) {
+                          await deleteClass(c.id);
+                          if (currentUser) {
+                            await addAuditLog(currentUser.name, `Deleted class ${c.name}`, `Class ID: ${c.id}`, "security");
+                          }
+                        }
+                      }}>
+                        <Trash2 className="size-4 mr-2" /> Delete Class
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                 </div>
               </div>
               <div className="mt-4 space-y-2 text-xs text-muted-foreground">
