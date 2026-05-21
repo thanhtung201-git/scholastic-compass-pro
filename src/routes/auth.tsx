@@ -8,8 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useAuth } from "@/lib/auth-context";
-import { ALL_ROLES, type Role } from "@/lib/types";
-import { mockUsers } from "@/lib/mock-data";
+import { type Role } from "@/lib/types";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/auth")({
@@ -97,42 +96,7 @@ function AuthPage() {
             </Tabs>
           </Card>
 
-          <Card className="p-4 bg-accent/40 border-dashed">
-            <div className="text-xs font-medium uppercase tracking-wide text-accent-foreground mb-2">
-              Prototype quick-access
-            </div>
-            <p className="text-xs text-muted-foreground mb-3">
-              Skip login and preview any actor's dashboard instantly.
-            </p>
-            <div className="grid grid-cols-2 gap-2">
-              {ALL_ROLES.map((r) => (
-                <Button
-                  key={r}
-                  variant="outline"
-                  size="sm"
-                  className="text-xs h-8 justify-start"
-                  onClick={() => {
-                    switchRole(r);
-                    toast.success(`Signed in as ${r}`);
-                    navigate({ to: "/dashboard" });
-                  }}
-                >
-                  {r}
-                </Button>
-              ))}
-            </div>
-            <details className="mt-3">
-              <summary className="text-xs text-muted-foreground cursor-pointer">Show demo emails</summary>
-              <div className="mt-2 space-y-1 text-xs text-muted-foreground">
-                {mockUsers.map((u) => (
-                  <div key={u.id} className="flex justify-between gap-2">
-                    <span className="font-mono">{u.email}</span>
-                    <span>{u.role}</span>
-                  </div>
-                ))}
-              </div>
-            </details>
-          </Card>
+
 
           <Link to="/auth" className="hidden">.</Link>
         </div>
@@ -214,15 +178,6 @@ function SignUpForm({ onSubmit, onSuccess }: { onSubmit: ReturnType<typeof useAu
           <Label htmlFor="su-cf">Confirm</Label>
           <Input id="su-cf" type="password" required minLength={6} value={confirm} onChange={(e) => setConfirm(e.target.value)} placeholder="Repeat" />
         </div>
-      </div>
-      <div className="space-y-2">
-        <Label>Role</Label>
-        <Select value={role} onValueChange={(v) => setRole(v as Role)}>
-          <SelectTrigger><SelectValue /></SelectTrigger>
-          <SelectContent>
-            {ALL_ROLES.map((r) => <SelectItem key={r} value={r}>{r}</SelectItem>)}
-          </SelectContent>
-        </Select>
       </div>
       <Button type="submit" className="w-full" disabled={loading}>
         {loading && <Loader2 className="size-4 animate-spin" />} Create Account

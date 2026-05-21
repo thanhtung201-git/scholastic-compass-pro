@@ -25,6 +25,7 @@ interface DbContextType {
   
   // Mutations
   toggleUserStatus: (id: string, currentStatus: string) => Promise<void>;
+  updateUserRole: (id: string, role: Role) => Promise<void>;
   addStudent: (student: any) => Promise<void>;
   createClass: (cls: any) => Promise<void>;
   saveAttendance: (log: any) => Promise<void>;
@@ -436,6 +437,23 @@ export function DatabaseProvider({ children }: { children: ReactNode }) {
     }
   });
 
+  const updateUserRoleMutation = useMutation({
+    mutationFn: async ({ id, role }: { id: string; role: Role }) => {
+      const { error } = await supabase
+        .from("users")
+        .update({ role })
+        .eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["users"] });
+      toast.success("User role updated successfully!");
+    },
+    onError: (err) => {
+      toast.error(`Failed to update role: ${err.message}`);
+    }
+  });
+
   const addStudentMutation = useMutation({
     mutationFn: async (student: any) => {
       // 1. Insert student
@@ -641,6 +659,10 @@ export function DatabaseProvider({ children }: { children: ReactNode }) {
     await toggleUserStatusMutation.mutateAsync({ id, status });
   };
 
+  const updateUserRole = async (id: string, role: Role) => {
+    await updateUserRoleMutation.mutateAsync({ id, role });
+  };
+
   const addStudent = async (student: any) => {
     await addStudentMutation.mutateAsync(student);
   };
@@ -701,6 +723,7 @@ export function DatabaseProvider({ children }: { children: ReactNode }) {
         loading,
         seeding,
         toggleUserStatus,
+        updateUserRole,
         addStudent,
         createClass,
         saveAttendance,

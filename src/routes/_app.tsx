@@ -2,7 +2,6 @@ import { createFileRoute, Outlet, useNavigate } from "@tanstack/react-router";
 import { useEffect } from "react";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/app-sidebar";
-import { RoleSwitcher } from "@/components/role-switcher";
 import { useAuth } from "@/lib/auth-context";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -52,7 +51,6 @@ function AppLayout() {
             </div>
             <div className="flex-1 md:hidden" />
             <div className="flex items-center gap-2">
-              <RoleSwitcher />
               <Button variant="ghost" size="icon" className="size-9 relative">
                 <Bell className="size-4" />
                 <span className="absolute top-2 right-2 size-1.5 rounded-full bg-destructive" />

@@ -8,11 +8,13 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { useDatabase } from "@/hooks/use-database";
 import { useAuth } from "@/lib/auth-context";
 import { Loader2 } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { ALL_ROLES, type Role } from "@/lib/types";
 
 export const Route = createFileRoute("/_app/users")({ component: UsersPage });
 
 function UsersPage() {
-  const { users, branches, toggleUserStatus, addAuditLog, loading } = useDatabase();
+  const { users, branches, toggleUserStatus, updateUserRole, addAuditLog, loading } = useDatabase();
   const { user: currentUser } = useAuth();
 
   const toggle = async (id: string, currentStatus: string, email: string) => {
@@ -51,7 +53,30 @@ function UsersPage() {
               <TableRow key={u.id}>
                 <TableCell className="font-medium">{u.name}</TableCell>
                 <TableCell className="text-xs text-muted-foreground">{u.email}</TableCell>
-                <TableCell><Badge variant="secondary">{u.role}</Badge></TableCell>
+                <TableCell>
+                  {currentUser?.role === "Admin" ? (
+                    <Select
+                      value={u.role}
+                      onValueChange={async (newRole) => {
+                        await updateUserRole(u.id, newRole as Role);
+                        await addAuditLog(currentUser.name, `Changed role of user ${u.name} to ${newRole}`, u.email, "security");
+                      }}
+                    >
+                      <SelectTrigger className="h-7 w-[140px] text-xs">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {ALL_ROLES.map((r) => (
+                          <SelectItem key={r} value={r} className="text-xs">
+                            {r}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  ) : (
+                    <Badge variant="secondary">{u.role}</Badge>
+                  )}
+                </TableCell>
                 <TableCell className="text-xs">{branches.find((b) => b.id === u.branch_id)?.name.replace("MCNAEdu — ", "") || "—"}</TableCell>
                 <TableCell><Badge variant={u.status === "Active" ? "default" : "destructive"}>{u.status}</Badge></TableCell>
                 <TableCell>
