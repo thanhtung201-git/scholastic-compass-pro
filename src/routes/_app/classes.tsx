@@ -8,10 +8,12 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Plus, Calendar, Users, Loader2, MoreHorizontal, Pencil, Trash2 } from "lucide-react";
 import { useDatabase } from "@/hooks/use-database";
 import { useAuth } from "@/lib/auth-context";
+import { useNavigate } from "@tanstack/react-router";
 
 export const Route = createFileRoute("/_app/classes")({ component: ClassesPage });
 
@@ -21,6 +23,7 @@ const formatVND = (n: number) =>
 function ClassesPage() {
   const { classes, courses, teachers, classrooms, enrolments, branches, createClass, updateClass, deleteClass, addAuditLog, loading } = useDatabase();
   const { user: currentUser } = useAuth();
+  const navigate = useNavigate();
 
   // Form State
   const [isOpen, setIsOpen] = useState(false);
@@ -32,6 +35,10 @@ function ClassesPage() {
   const [startDate, setStartDate] = useState(new Date().toISOString().slice(0, 10));
   const [maxCapacity, setMaxCapacity] = useState("18");
   const [submitting, setSubmitting] = useState(false);
+
+  // Alert Dialog State for delete validation
+  const [deleteAlertOpen, setDeleteAlertOpen] = useState(false);
+  const [classToDelete, setClassToDelete] = useState<any>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -69,6 +76,21 @@ function ClassesPage() {
       console.error(err);
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const handleDeleteClick = (classData: any) => {
+    const enrolled = enrolments.filter((e) => e.class_id === classData.id && e.status === "Active").length;
+    
+    if (enrolled > 0) {
+      setClassToDelete({ ...classData, enrolled });
+      setDeleteAlertOpen(true);
+    } else {
+      // No students, delete directly
+      if (confirm(`Are you sure you want to delete ${classData.name}?`)) {
+        deleteClass(classData.id);
+        addAuditLog(currentUser?.name || "System", `Deleted class ${classData.name}`, `Class ID: ${classData.id}`, "security");
+      }
     }
   };
 
@@ -294,12 +316,7 @@ function ClassesPage() {
                         </DialogContent>
                       </Dialog>
                       <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={async () => {
-                        if (confirm(`Are you sure you want to delete ${c.name}?`)) {
-                          await deleteClass(c.id);
-                          if (currentUser) {
-                            await addAuditLog(currentUser.name, `Deleted class ${c.name}`, `Class ID: ${c.id}`, "security");
-                          }
-                        }
+                        handleDeleteClick(c);
                       }}>
                         <Trash2 className="size-4 mr-2" /> Delete Class
                       </DropdownMenuItem>
@@ -324,6 +341,36 @@ function ClassesPage() {
           );
         })}
       </div>
+
+      <AlertDialog open={deleteAlertOpen} onOpenChange={setDeleteAlertOpen}>
+        <AlertDialogContent className="max-w-md">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-destructive flex items-center gap-2">
+              ⚠️ Không thể xóa lớp học này!
+            </AlertDialogTitle>
+          </AlertDialogHeader>
+          <AlertDialogDescription className="space-y-3">
+            <p>
+              Lớp học hiện đang có <strong>{classToDelete?.enrolled} học sinh</strong> đang theo học (Xem hình bạn chụp: lớp <strong>{classToDelete?.name}</strong> có <strong>{classToDelete?.enrolled}/{classToDelete?.max_capacity}</strong> Enrolment). 
+            </p>
+            <p>
+              Bạn không thể xóa lớp học khi còn học sinh bên trong.
+            </p>
+            <p className="text-sm font-semibold">
+              Để xóa lớp này, vui lòng chuyển học sinh sang lớp khác hoặc xóa lịch sử đăng ký của học sinh trước.
+            </p>
+          </AlertDialogDescription>
+          <AlertDialogFooter className="gap-2">
+            <AlertDialogCancel>Đóng</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={() => navigate({ to: "/students" })}
+              className="bg-primary hover:bg-primary/90"
+            >
+              Đi tới danh sách học sinh
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

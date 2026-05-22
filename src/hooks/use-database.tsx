@@ -27,6 +27,7 @@ interface DbContextType {
   toggleUserStatus: (id: string, currentStatus: string) => Promise<void>;
   updateUserRole: (id: string, role: Role) => Promise<void>;
   addStudent: (student: any) => Promise<void>;
+  updateStudent: (id: string, student: any) => Promise<void>;
   createClass: (cls: any) => Promise<void>;
   updateClass: (id: string, cls: any) => Promise<void>;
   deleteClass: (id: string) => Promise<void>;
@@ -160,8 +161,13 @@ export function DatabaseProvider({ children }: { children: ReactNode }) {
   const { data: auditLogs = [], isLoading: loadAudit } = useQuery({
     queryKey: ["audit_logs"],
     queryFn: async () => {
+      console.log("Query: Fetching audit_logs");
       const { data, error } = await supabase.from("audit_logs").select("*").order("time", { ascending: false });
-      if (error) throw error;
+      if (error) {
+        console.error("Query error:", error);
+        throw error;
+      }
+      console.log("Query result: Loaded", data?.length || 0, "audit logs");
       return data;
     }
   });
@@ -662,12 +668,18 @@ export function DatabaseProvider({ children }: { children: ReactNode }) {
 
   const addAuditLogMutation = useMutation({
     mutationFn: async (log: any) => {
+      console.log("Mutation: Inserting audit log to database:", log);
       const { error } = await supabase
         .from("audit_logs")
         .insert([log]);
-      if (error) throw error;
+      if (error) {
+        console.error("Mutation error inserting audit log:", error);
+        throw error;
+      }
+      console.log("Mutation: Audit log inserted successfully");
     },
     onSuccess: () => {
+      console.log("OnSuccess: Invalidating audit_logs query");
       queryClient.invalidateQueries({ queryKey: ["audit_logs"] });
     }
   });
@@ -716,6 +728,34 @@ export function DatabaseProvider({ children }: { children: ReactNode }) {
     }
   });
 
+  const updateStudentMutation = useMutation({
+    mutationFn: async ({ id, student }: { id: string; student: any }) => {
+      // 1. Update student record
+      const { error: studentErr } = await supabase.from("students").update(student).eq("id", id);
+      if (studentErr) throw studentErr;
+
+      // 2. If enrolled_class changed, update enrolment record
+      if (student.enrolled_class) {
+        const enrolment = enrolments.find((e) => e.student_id === id);
+        if (enrolment && enrolment.class_id !== student.enrolled_class) {
+          const { error: enrolErr } = await supabase
+            .from("enrolments")
+            .update({ class_id: student.enrolled_class })
+            .eq("id", enrolment.id);
+          if (enrolErr) throw enrolErr;
+        }
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["students"] });
+      queryClient.invalidateQueries({ queryKey: ["enrolments"] });
+      toast.success("Student updated successfully!");
+    },
+    onError: (err) => {
+      toast.error(`Failed to update student: ${err.message}`);
+    }
+  });
+
   const deleteStudentMutation = useMutation({
     mutationFn: async (id: string) => {
       const { error } = await supabase.from("students").delete().eq("id", id);
@@ -757,6 +797,10 @@ export function DatabaseProvider({ children }: { children: ReactNode }) {
     await addStudentMutation.mutateAsync(student);
   };
 
+  const updateStudent = async (id: string, student: any) => {
+    await updateStudentMutation.mutateAsync({ id, student });
+  };
+
   const createClass = async (cls: any) => {
     await createClassMutation.mutateAsync(cls);
   };
@@ -788,13 +832,18 @@ export function DatabaseProvider({ children }: { children: ReactNode }) {
   const addAuditLog = async (actor: string, action: string, target: string, type: string) => {
     const log = {
       id: crypto.randomUUID(),
-      actor,
+      actor_name: actor,
       action,
       target,
-      time: new Date().toISOString().replace("T", " ").slice(0, 16),
       type
     };
-    await addAuditLogMutation.mutateAsync(log);
+    console.log("Adding audit log:", log);
+    try {
+      await addAuditLogMutation.mutateAsync(log);
+      console.log("Audit log added successfully");
+    } catch (err) {
+      console.error("Error adding audit log:", err);
+    }
   };
 
   const addSchedule = async (schedule: any) => {
@@ -839,6 +888,7 @@ export function DatabaseProvider({ children }: { children: ReactNode }) {
         toggleUserStatus,
         updateUserRole,
         addStudent,
+        updateStudent,
         createClass,
         updateClass,
         deleteClass,
