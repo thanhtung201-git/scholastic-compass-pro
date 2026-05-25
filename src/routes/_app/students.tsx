@@ -42,10 +42,33 @@ function StudentsPage() {
   const [editStatus, setEditStatus] = useState("");
   const [editSubmitting, setEditSubmitting] = useState(false);
 
-  const filtered = students.filter((s) => 
-    s.name?.toLowerCase().includes(q.toLowerCase()) || 
-    s.email?.toLowerCase().includes(q.toLowerCase())
-  );
+  // Filter states
+  const [filterClass, setFilterClass] = useState("");
+  const [filterBranch, setFilterBranch] = useState("");
+  const [filterStatus, setFilterStatus] = useState("");
+
+  // Filter students based on search query
+  // Apply search and filter criteria (case‑insensitive)
+  const filtered = students.filter((s) => {
+    const matchesSearch =
+      s.name?.toLowerCase().includes(q.toLowerCase()) ||
+      s.email?.toLowerCase().includes(q.toLowerCase());
+    const matchesClass = filterClass ? s.enrolled_class === filterClass : true;
+    const matchesBranch = filterBranch ? s.branch_id === filterBranch : true;
+    const matchesStatus = filterStatus
+      ? (s.status?.toLowerCase() === filterStatus.toLowerCase())
+      : true;
+    return matchesSearch && matchesClass && matchesBranch && matchesStatus;
+  });
+
+  // Sort so that "Đang học" appears first, "Bỏ học" last (case‑insensitive)
+  const statusOrder = (status: string) => {
+    const lower = (status || "").toLowerCase();
+    if (lower === "đang học") return 0;
+    if (lower === "bỏ học") return 2;
+    return 1; // all other statuses in the middle
+  };
+  const sortedStudents = filtered.slice().sort((a, b) => statusOrder(a.status) - statusOrder(b.status));
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -260,6 +283,40 @@ function StudentsPage() {
             <Search className="size-4 absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
             <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search by name or email…" className="pl-8 h-9" />
           </div>
+          {/* Filter dropdowns */}
+          <div className="flex gap-2 items-center">
+            <Select value={filterClass} onValueChange={setFilterClass}>
+              <SelectTrigger className="w-[120px]">
+                <SelectValue placeholder="All Classes" />
+              </SelectTrigger>
+              <SelectContent>
+                {classes.map((c) => (
+                  <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select value={filterBranch} onValueChange={setFilterBranch}>
+              <SelectTrigger className="w-[140px]">
+                <SelectValue placeholder="All Branches" />
+              </SelectTrigger>
+              <SelectContent>
+                {branches.map((b) => (
+                  <SelectItem key={b.id} value={b.id}>{b.name.replace("MCNAEdu — ", "")}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select value={filterStatus} onValueChange={setFilterStatus}>
+              <SelectTrigger className="w-[120px]">
+                <SelectValue placeholder="All Statuses" />
+              </SelectTrigger>
+              <SelectContent>
+                {["Đang học", "Bỏ học", "Đã hoàn thành", "Đuổi học", "Tạm dừng"].map((st) => (
+                  <SelectItem key={st} value={st}>{st}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Button variant="outline" onClick={() => { setFilterClass(""); setFilterBranch(""); setFilterStatus(""); }}>Clear All</Button>
+          </div>
           <Badge variant="secondary">{filtered.length} results</Badge>
         </div>
         <div className="rounded-lg border overflow-hidden">
@@ -277,21 +334,17 @@ function StudentsPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filtered.map((s) => {
+              {sortedStudents.map((s) => {
                 const cls = classes.find((c) => c.id === s.enrolled_class);
                 const enrol = enrolments.find((e) => e.student_id === s.id);
                 const branch = branches.find((b) => b.id === s.branch_id);
                 const invoice = tuitionInvoices.find((inv) => inv.student_id === s.id);
                 
-                // Map status values for display
-                const statusDisplay: { [key: string]: { label: string; variant: "default" | "secondary" | "destructive" | "outline" } } = {
-                  "Active": { label: "Đang học", variant: "default" },
-                  "Dropped": { label: "Bỏ học", variant: "destructive" },
-                  "Completed": { label: "Đã hoàn thành", variant: "secondary" },
-                  "Expelled": { label: "Đuổi học", variant: "destructive" },
-                  "Preserved": { label: "Tạm dừng", variant: "outline" }
-                };
-                const statusInfo = statusDisplay[enrol?.status as keyof typeof statusDisplay] || { label: enrol?.status || "—", variant: "outline" as const };
+                // Determine status label and badge variant; 'Dropped' should be red (destructive)
+                const statusRaw = s.status as string || "—";
+                const statusLabel = statusRaw === "—" ? "—" : statusRaw.charAt(0).toUpperCase() + statusRaw.slice(1);
+                const statusVariant: "default" | "destructive" = statusLabel === "Bỏ học" ? "destructive" : "default";
+                const statusInfo = { label: statusLabel, variant: statusVariant as const };
                 
                 return (
                   <TableRow key={s.id}>
@@ -306,9 +359,9 @@ function StudentsPage() {
                     <TableCell><Badge variant="outline">{cls?.name || "—"}</Badge></TableCell>
                     <TableCell className="text-xs">{branch?.name.replace("MCNAEdu — ", "") || "—"}</TableCell>
                     <TableCell>
-                      <Badge variant={statusInfo.variant}>
-                        {statusInfo.label}
-                      </Badge>
+                        <Badge variant={statusInfo.variant}>
+                          {statusInfo.label}
+                        </Badge>
                     </TableCell>
                     <TableCell className="text-xs">
                       {invoice?.issued_at ? new Date(invoice.issued_at).toLocaleDateString("vi-VN") : "—"}

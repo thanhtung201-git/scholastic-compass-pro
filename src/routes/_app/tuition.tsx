@@ -101,12 +101,14 @@ function TuitionPage() {
             <TableHeader>
               <TableRow>
                 <TableHead>Invoice</TableHead>
-                <TableHead>Student</TableHead>
-                <TableHead className="text-right">Amount Due</TableHead>
-                <TableHead className="text-right">Paid</TableHead>
-                <TableHead className="text-right">Remaining</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead className="w-32"></TableHead>
+<TableHead>Student</TableHead>
+<TableHead className="text-right">Amount Due</TableHead>
+<TableHead className="text-right">Paid</TableHead>
+<TableHead className="text-right">Remaining</TableHead>
+<TableHead className="text-center">Due Date</TableHead>
+<TableHead className="text-center">Payment Note</TableHead>
+<TableHead>Status</TableHead>
+<TableHead className="w-32"></TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -118,7 +120,9 @@ function TuitionPage() {
                     <TableCell className="font-medium">{stu?.name || "—"}</TableCell>
                     <TableCell className="text-right tabular-nums">{formatVND(Number(i.amount_due || 0))}</TableCell>
                     <TableCell className="text-right tabular-nums text-success">{formatVND(Number(i.amount_paid || 0))}</TableCell>
-                    <TableCell className="text-right tabular-nums text-destructive">{formatVND(Number(i.remaining_debt || 0))}</TableCell>
+<TableCell className="text-right tabular-nums text-destructive">{formatVND(Number(i.remaining_debt || 0))}</TableCell>
+                    <TableCell className="text-center">{i.due_date ? new Date(i.due_date).toLocaleDateString() : "—"}</TableCell>
+                    <TableCell className="text-center">{i.payment_note || "—"}</TableCell>
                     <TableCell>
                       <Badge variant={i.status === "Paid" ? "default" : i.status === "Unpaid" ? "destructive" : "secondary"}>{i.status}</Badge>
                     </TableCell>
