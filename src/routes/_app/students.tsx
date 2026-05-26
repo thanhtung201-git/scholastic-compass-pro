@@ -76,6 +76,14 @@ function StudentsPage() {
 
     setSubmitting(true);
     try {
+      // Check if class is full
+      const selectedClass = classes.find((c) => c.id === enrolledClass);
+      const enrolledCount = enrolments.filter((e) => e.class_id === enrolledClass).length;
+      
+      if (selectedClass && enrolledCount >= selectedClass.max_capacity) {
+        throw new Error(`Class ${selectedClass.name} is full (${enrolledCount}/${selectedClass.max_capacity}). Cannot add more students.`);
+      }
+
       const studentId = crypto.randomUUID();
       await addStudent({
         id: studentId,
@@ -110,6 +118,16 @@ function StudentsPage() {
 
     setEditSubmitting(true);
     try {
+      // Check if class is full (only if class changed)
+      if (editEnrolledClass !== editingStudent.enrolled_class) {
+        const selectedClass = classes.find((c) => c.id === editEnrolledClass);
+        const enrolledCount = enrolments.filter((e) => e.class_id === editEnrolledClass).length;
+        
+        if (selectedClass && enrolledCount >= selectedClass.max_capacity) {
+          throw new Error(`Class ${selectedClass.name} is full (${enrolledCount}/${selectedClass.max_capacity}). Cannot move student to this class.`);
+        }
+      }
+
       await updateStudent(editingStudent.id, {
         name: editName,
         email: editEmail,
@@ -190,9 +208,13 @@ function StudentsPage() {
                   <Select value={enrolledClass} onValueChange={setEnrolledClass} required>
                     <SelectTrigger><SelectValue placeholder="Select class" /></SelectTrigger>
                     <SelectContent>
-                      {classes.map((c) => (
-                        <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
-                      ))}
+                      {classes.map((c) => {
+                        const enrolledCount = enrolments.filter((e) => e.class_id === c.id).length;
+                        const isFull = enrolledCount >= c.max_capacity;
+                        return (
+                          <SelectItem key={c.id} value={c.id} disabled={isFull}>{c.name} ({enrolledCount}/{c.max_capacity}){isFull ? " - FULL" : ""}</SelectItem>
+                        );
+                      })}
                     </SelectContent>
                   </Select>
                 </div>
@@ -250,9 +272,13 @@ function StudentsPage() {
               <Select value={editEnrolledClass} onValueChange={setEditEnrolledClass} required>
                 <SelectTrigger><SelectValue placeholder="Select class" /></SelectTrigger>
                 <SelectContent>
-                  {classes.map((c) => (
-                    <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
-                  ))}
+                  {classes.map((c) => {
+                    const enrolledCount = enrolments.filter((e) => e.class_id === c.id).length;
+                    const isFull = enrolledCount >= c.max_capacity;
+                    return (
+                      <SelectItem key={c.id} value={c.id} disabled={isFull}>{c.name} ({enrolledCount}/{c.max_capacity}){isFull ? " - FULL" : ""}</SelectItem>
+                    );
+                  })}
                 </SelectContent>
               </Select>
             </div>
@@ -290,9 +316,12 @@ function StudentsPage() {
                 <SelectValue placeholder="All Classes" />
               </SelectTrigger>
               <SelectContent>
-                {classes.map((c) => (
-                  <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
-                ))}
+                {classes.map((c) => {
+                  const enrolledCount = enrolments.filter((e) => e.class_id === c.id).length;
+                  return (
+                    <SelectItem key={c.id} value={c.id}>{c.name} ({enrolledCount}/{c.max_capacity})</SelectItem>
+                  );
+                })}
               </SelectContent>
             </Select>
             <Select value={filterBranch} onValueChange={setFilterBranch}>
