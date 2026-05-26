@@ -53,6 +53,12 @@ const navSections: NavSection[] = [
     ]
   },
   {
+    label: "Project Management",
+    items: [
+      { title: "Task Assignment", url: "/task-assignment", icon: CheckSquare, roles: ["Director","Finance Manager","Academic Manager","Admin","Accountant","Academic Staff"] },
+    ]
+  },
+  {
     label: "Administration",
     items: [
       { title: "User Management", url: "/users", icon: Shield, roles: ["Admin"] },
