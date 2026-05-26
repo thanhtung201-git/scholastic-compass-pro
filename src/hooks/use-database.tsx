@@ -686,13 +686,55 @@ export function DatabaseProvider({ children }: { children: ReactNode }) {
 
   const addScheduleMutation = useMutation({
     mutationFn: async (schedule: any) => {
-      const { error } = await supabase
+      // 1. Insert schedule
+      const { error: schedError } = await supabase
         .from("schedules")
         .insert([schedule]);
-      if (error) throw error;
+      if (schedError) throw schedError;
+
+      // 2. Create attendance log for this schedule
+      const classEnrolments = enrolments.filter((e) => e.class_id === schedule.class_id);
+      const teacher = teachers.find((t) => t.id === schedule.teacher_id);
+      
+      // Calculate hours from start_time and end_time
+      const [startH, startM] = schedule.start_time.split(":").map(Number);
+      const [endH, endM] = schedule.end_time.split(":").map(Number);
+      const hours = (endH + endM / 60) - (startH + startM / 60);
+      
+      const hourlyRate = teacher?.hourly_rate || 0;
+      const totalPay = hours * hourlyRate;
+
+      // Create student attendance records
+      const studentAttendance = classEnrolments.map((enrol) => {
+        const student = students.find((s) => s.id === enrol.student_id);
+        return {
+          student_id: enrol.student_id,
+          student_name: student?.name || "Unknown",
+          status: "Present" // Default status
+        };
+      });
+
+      const attendanceLog = {
+        id: crypto.randomUUID(),
+        class_id: schedule.class_id,
+        schedule_id: schedule.id,
+        teacher_id: schedule.teacher_id,
+        lesson_date: schedule.lesson_date,
+        student_attendance: studentAttendance,
+        hours: Math.round(hours * 100) / 100,
+        hourly_rate: hourlyRate,
+        total_pay: Math.round(totalPay),
+        status: "Draft"
+      };
+
+      const { error: attError } = await supabase
+        .from("attendance_logs")
+        .insert([attendanceLog]);
+      if (attError) throw attError;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["schedules"] });
+      queryClient.invalidateQueries({ queryKey: ["attendance_logs"] });
       toast.success("Schedule created successfully!");
     },
     onError: (err) => {
@@ -749,6 +791,7 @@ export function DatabaseProvider({ children }: { children: ReactNode }) {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["students"] });
       queryClient.invalidateQueries({ queryKey: ["enrolments"] });
+      queryClient.invalidateQueries({ queryKey: ["classes"] });
       toast.success("Student updated successfully!");
     },
     onError: (err) => {
