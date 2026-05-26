@@ -5,7 +5,9 @@ export type Role =
   | "Director"
   | "Teacher"
   | "Student"
-  | "Receptionist";
+  | "Receptionist"
+  | "Finance Manager"
+  | "Academic Manager";
 
 export const ALL_ROLES: Role[] = [
   "Admin",

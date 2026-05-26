@@ -1,7 +1,7 @@
 import { Link, useRouterState } from "@tanstack/react-router";
 import {
   LayoutDashboard, Users, BookOpen, Calendar, ClipboardList, GraduationCap,
-  Receipt, ClipboardCheck, Banknote, Shield, DoorOpen, FileText, type LucideIcon,
+  Receipt, ClipboardCheck, Banknote, Shield, DoorOpen, FileText, CheckSquare, type LucideIcon,
 } from "lucide-react";
 import {
   Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGroupLabel,
@@ -13,6 +13,7 @@ interface NavItem { title: string; url: string; icon: LucideIcon; roles: Role[] 
 
 const navItems: NavItem[] = [
   { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard, roles: ["Admin","Academic Staff","Accountant","Director","Teacher","Student","Receptionist"] },
+  { title: "Task Assignment", url: "/task-assignment", icon: CheckSquare, roles: ["Director","Finance Manager","Academic Manager","Admin","Accountant","Academic Staff"] },
   { title: "Students", url: "/students", icon: Users, roles: ["Admin","Academic Staff","Director"] },
   { title: "Classes", url: "/classes", icon: BookOpen, roles: ["Admin","Academic Staff","Director","Student"] },
   { title: "Schedule", url: "/schedule", icon: Calendar, roles: ["Admin","Academic Staff","Director","Teacher","Student"] },

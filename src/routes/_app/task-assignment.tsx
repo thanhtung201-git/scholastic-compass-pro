@@ -1,0 +1,596 @@
+import { createFileRoute } from "@tanstack/react-router";
+import { useEffect, useState } from "react";
+import { useAuth } from "@/lib/auth-context";
+import { supabase } from "@/lib/supabase";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
+import { format, differenceInDays, isPast, parseISO, parse, isValid } from "date-fns";
+import { CalendarIcon, Plus, AlertCircle, Clock, CheckCircle2, Circle } from "lucide-react";
+
+// ─── Types ────────────────────────────────────────────────────────────────────
+
+type Department = { id: string; department_name: string };
+type UserOption  = { id: string; name: string };
+type Task = {
+  id: string;
+  title: string;
+  description: string;
+  department: string;
+  assign_to: string;
+  assign_by: string;
+  priority: "Low" | "Medium" | "High";
+  status: "Todo" | "In Progress" | "Done";
+  due_date: string;
+  created_at: string;
+  assignee_name?: string;
+};
+
+// ─── Role-based permission helpers ────────────────────────────────────────────
+
+// Roles that can assign tasks to others (not just themselves)
+const CAN_ASSIGN_ROLES = ["Director", "Finance Manager", "Academic Manager", "Admin"];
+
+// Departments each manager role controls
+const ROLE_DEPARTMENT_MAP: Record<string, string> = {
+  "Finance Manager": "Finance",
+  "Academic Manager": "Academic",
+  "Admin": "IT",
+};
+
+function canAssignOthers(role: string) {
+  return CAN_ASSIGN_ROLES.includes(role);
+}
+
+// Director sees all; managers see their dept; staff sees only own tasks
+function buildTaskQuery(supabase: any, userId: string, userRole: string) {
+  const base = supabase.from("tasks").select(`
+    id, title, description, department, assigned_to, assigned_by,
+    priority, status, due_date,
+    users!tasks_assigned_to_fkey(name)
+  `);
+
+  if (userRole === "Director") return base;
+
+  const deptName = ROLE_DEPARTMENT_MAP[userRole];
+  if (deptName) return base.eq("department", deptName);
+
+  // Staff: only own tasks
+  return base.eq("assigned_to", userId);
+}
+
+// Filter department dropdown by role
+function getAllowedDeptIds(
+  departments: Department[],
+  userRole: string
+): Department[] {
+  if (userRole === "Director") return departments;
+  const allowed = ROLE_DEPARTMENT_MAP[userRole];
+  if (allowed) return departments.filter((d) => d.department_name === allowed);
+  return [];
+}
+
+// ─── Due-date badge ───────────────────────────────────────────────────────────
+
+function DueBadge({ due_date, status }: { due_date: string; status: string }) {
+  if (!due_date || status === "Done") return null;
+  const date = parseISO(due_date);
+  const diff  = differenceInDays(date, new Date());
+
+  if (isPast(date))
+    return (
+      <span className="inline-flex items-center gap-1 text-xs font-medium text-red-700 bg-red-50 border border-red-200 rounded-full px-2 py-0.5">
+        <AlertCircle className="size-3" /> Overdue
+      </span>
+    );
+
+  if (diff <= 2)
+    return (
+      <span className="inline-flex items-center gap-1 text-xs font-medium text-amber-700 bg-amber-50 border border-amber-200 rounded-full px-2 py-0.5">
+        <Clock className="size-3" /> Due soon
+      </span>
+    );
+
+  return null;
+}
+
+// ─── Priority badge ───────────────────────────────────────────────────────────
+
+const PRIORITY_STYLES: Record<string, string> = {
+  High:   "bg-red-50 text-red-700 border-red-200",
+  Medium: "bg-amber-50 text-amber-700 border-amber-200",
+  Low:    "bg-green-50 text-green-700 border-green-200",
+};
+
+function PriorityBadge({ priority }: { priority: string }) {
+  return (
+    <span className={`text-xs font-medium border rounded-full px-2 py-0.5 ${PRIORITY_STYLES[priority] ?? ""}`}>
+      {priority}
+    </span>
+  );
+}
+
+// ─── Status badge ─────────────────────────────────────────────────────────────
+
+function StatusBadge({ status }: { status: string }) {
+  const map: Record<string, { cls: string; icon: React.ReactNode }> = {
+    "Todo":       { cls: "bg-gray-100 text-gray-600 border-gray-200",   icon: <Circle className="size-3" /> },
+    "In Progress":{ cls: "bg-blue-50 text-blue-700 border-blue-200",    icon: <Clock className="size-3" /> },
+    "Done":       { cls: "bg-green-50 text-green-700 border-green-200", icon: <CheckCircle2 className="size-3" /> },
+  };
+  const s = map[status] ?? map["Todo"];
+  return (
+    <span className={`inline-flex items-center gap-1 text-xs font-medium border rounded-full px-2 py-0.5 ${s.cls}`}>
+      {s.icon} {status}
+    </span>
+  );
+}
+
+// ─── Main page ────────────────────────────────────────────────────────────────
+
+function TaskAssignmentPage() {
+  const { user } = useAuth();
+  const userRole: string = (user as any)?.role ?? "";
+
+  const [open,          setOpen]         = useState(false);
+  const [departments,   setDepartments]  = useState<Department[]>([]);
+  const [users,         setUsers]        = useState<UserOption[]>([]);
+  const [tasks,         setTasks]        = useState<Task[]>([]);
+  const [selectedDept,  setSelectedDept] = useState("");
+  const [calendarOpen,  setCalendarOpen] = useState(false);
+  const [filterStatus,  setFilterStatus] = useState("All");
+  const [filterDept,    setFilterDept]   = useState("All");
+  const [submitError,   setSubmitError]  = useState<string | null>(null);
+  const [isSubmitting,  setIsSubmitting] = useState(false);
+
+  const [form, setForm] = useState({
+    title: "",
+    description: "",
+    department: "",
+    assigned_to: "",
+    priority: "Medium",
+    due_date: "",
+  });
+
+  // ── Load departments ─────────────────────────────────────────────────────────
+  useEffect(() => {
+    supabase
+      .from("department")
+      .select("id, department_name")
+      .then(({ data, error }) => {
+        if (!error && data) setDepartments(data as Department[]);
+      });
+  }, []);
+
+  // ── Load tasks ───────────────────────────────────────────────────────────────
+  const fetchTasks = async () => {
+    if (!user?.id) return;
+    const { data, error } = await buildTaskQuery(supabase, user.id, userRole);
+    if (!error && data) {
+      const shaped = (data as any[]).map((t) => ({
+        ...t,
+        assignee_name: t.users?.name ?? "—",
+      }));
+      setTasks(shaped);
+    }
+  };
+
+  useEffect(() => { fetchTasks(); }, [user, userRole]);
+
+  // ── Load users when department changes ───────────────────────────────────────
+  useEffect(() => {
+    if (!selectedDept) { setUsers([]); return; }
+
+    // selectedDept is a UUID — look up department_name to query roles table
+    const deptObj = departments.find((d) => d.id === selectedDept);
+    if (!deptObj) return;
+
+    supabase
+      .from("roles")
+      .select("role_name")
+      .eq("department_name", deptObj.department_name)
+      .then(async ({ data: rolesData, error: rolesError }) => {
+        if (rolesError || !rolesData?.length) { setUsers([]); return; }
+        const roleList = rolesData.map((r: any) => r.role_name);
+        const { data: usersData } = await supabase
+          .from("users")
+          .select("id, name")
+          .in("role", roleList);
+        setUsers((usersData as UserOption[]) ?? []);
+      });
+
+    setForm((prev) => ({ ...prev, department: selectedDept, assigned_to: "" }));
+  }, [selectedDept, departments]);
+
+  // ── Default assigned_to = current user ──────────────────────────────────────
+  useEffect(() => {
+    if (user?.id) setForm((prev) => ({ ...prev, assigned_to: user.id }));
+  }, [user]);
+
+  // ── Submit ───────────────────────────────────────────────────────────────────
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSubmitError(null);
+
+    // Client-side validation
+    if (!form.title.trim()) {
+      setSubmitError("Title is required.");
+      return;
+    }
+    if (!form.department) {
+      setSubmitError("Please select a department.");
+      return;
+    }
+    if (!form.assigned_to) {
+      setSubmitError("Please select a user to assign this task to.");
+      return;
+    }
+
+    // Sanitize payload — send null instead of "" for optional fields
+    const formattedDueDate = form.due_date && isValid(parseISO(form.due_date))
+      ? format(parseISO(form.due_date), "yyyy-MM-dd")
+      : null;
+
+    // Resolve department name for foreign key constraint
+    const deptObj = departments.find((d) => d.id === form.department);
+    const departmentName = deptObj ? deptObj.department_name : null;
+
+    const payload = {
+      title: form.title.trim(),
+      description: form.description.trim() || null,
+      department: departmentName,
+      assigned_to: form.assigned_to,
+      assigned_by: user?.id ?? null,
+      priority: form.priority,
+      status: "Todo",
+      due_date: formattedDueDate,
+    };
+
+    setIsSubmitting(true);
+    console.log("Inserting payload:", JSON.stringify(payload, null, 2));
+    const { data, error } = await supabase.from("tasks").insert([payload]).single();
+    setIsSubmitting(false);
+
+    if (!error) {
+      setForm({ title: "", description: "", department: "", assigned_to: user?.id ?? "", priority: "Medium", due_date: "" });
+      setSelectedDept("");
+      setCalendarOpen(false);
+      setSubmitError(null);
+      setOpen(false);
+      fetchTasks();
+    } else {
+      console.error("Failed to create task:", error);
+      setSubmitError(error.message ?? "Something went wrong. Please try again.");
+    }
+  };
+
+  // ── Update task status inline ────────────────────────────────────────────────
+  const updateStatus = async (taskId: string, status: string) => {
+    await supabase.from("tasks").update({ status }).eq("id", taskId);
+    fetchTasks();
+  };
+
+  // ── Filtered task list ───────────────────────────────────────────────────────
+  const filteredTasks = tasks.filter((t) => {
+    const statusOk = filterStatus === "All" || t.status === filterStatus;
+    const deptOk   = filterDept   === "All" || t.department === filterDept;
+    return statusOk && deptOk;
+  });
+
+  const allowedDepts = getAllowedDeptIds(departments, userRole);
+  const uniqueDeptNames = [...new Set(tasks.map((t) => t.department).filter(Boolean))];
+
+  // ─────────────────────────────────────────────────────────────────────────────
+
+  return (
+    <div className="p-6 max-w-6xl mx-auto space-y-6">
+
+      {/* ── Header ── */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-xl font-semibold">Task Assignment</h1>
+          <p className="text-sm text-muted-foreground mt-0.5">
+            {userRole === "Director"
+              ? "All departments"
+              : ROLE_DEPARTMENT_MAP[userRole]
+                ? `${ROLE_DEPARTMENT_MAP[userRole]} department`
+                : "My tasks"}
+          </p>
+        </div>
+
+        {canAssignOthers(userRole) && (
+          <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) setSubmitError(null); }}>
+            <DialogTrigger asChild>
+              <Button>
+                <Plus className="size-4 mr-1" /> New Task
+              </Button>
+            </DialogTrigger>
+
+            <DialogContent className="sm:max-w-[520px]">
+              <DialogHeader>
+                <DialogTitle>Create New Task</DialogTitle>
+              </DialogHeader>
+
+              <form onSubmit={handleSubmit} className="space-y-4 pt-2">
+                {/* Title */}
+                <div>
+                  <label className="block text-sm font-medium mb-1">Title</label>
+                  <Input
+                    name="title"
+                    value={form.title}
+                    onChange={(e) => setForm((p) => ({ ...p, title: e.target.value }))}
+                    required
+                  />
+                </div>
+
+                {/* Description */}
+                <div>
+                  <label className="block text-sm font-medium mb-1">Description</label>
+                  <Textarea
+                    name="description"
+                    value={form.description}
+                    onChange={(e) => setForm((p) => ({ ...p, description: e.target.value }))}
+                    rows={3}
+                  />
+                </div>
+
+                {/* Department */}
+                <div>
+                  <label className="block text-sm font-medium mb-1">Department</label>
+                  <Select value={selectedDept} onValueChange={setSelectedDept}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select department" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {allowedDepts.map((d) => (
+                        <SelectItem key={d.id} value={d.id}>
+                          {d.department_name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Assign To */}
+                <div>
+                  <label className="block text-sm font-medium mb-1">Assign To</label>
+                  <Select
+                    value={form.assigned_to}
+                    onValueChange={(v) => setForm((p) => ({ ...p, assigned_to: v }))}
+                    disabled={!selectedDept}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder={selectedDept ? "Select user" : "Select department first"} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {users.map((u) => (
+                        <SelectItem key={u.id} value={u.id}>
+                          {u.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Priority */}
+                <div>
+                  <label className="block text-sm font-medium mb-1">Priority</label>
+                  <Select
+                    value={form.priority}
+                    onValueChange={(v) => setForm((p) => ({ ...p, priority: v }))}
+                  >
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Low">Low</SelectItem>
+                      <SelectItem value="Medium">Medium</SelectItem>
+                      <SelectItem value="High">High</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Due Date */}
+                <div>
+                  <label className="block text-sm font-medium mb-1">Due Date</label>
+                  <div className="flex gap-2 items-center">
+                    <Input
+                      placeholder="YYYY-MM-DD"
+                      value={form.due_date}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setForm((p) => ({ ...p, due_date: val }));
+                      }}
+                      className="flex-1"
+                    />
+                    <Popover open={calendarOpen} onOpenChange={setCalendarOpen}>
+                      <PopoverTrigger asChild>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="icon"
+                          className="shrink-0"
+                          aria-label="Open calendar"
+                        >
+                          <CalendarIcon className="size-4" />
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="end" side="bottom">
+                        <Calendar
+                          mode="single"
+                          selected={
+                            form.due_date && isValid(parse(form.due_date, "yyyy-MM-dd", new Date()))
+                              ? parse(form.due_date, "yyyy-MM-dd", new Date())
+                              : undefined
+                          }
+                          onSelect={(date) => {
+                            setForm((p) => ({ ...p, due_date: date ? format(date, "yyyy-MM-dd") : "" }));
+                            setCalendarOpen(false);
+                          }}
+                          initialFocus
+                        />
+                      </PopoverContent>
+                    </Popover>
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Type a date (YYYY-MM-DD) or click <CalendarIcon className="inline size-3 mb-0.5" /> to pick
+                  </p>
+                </div>
+
+                <div className="flex justify-end gap-2 pt-2">
+                  {submitError && (
+                    <p className="text-sm text-red-600 flex-1 flex items-center gap-1">
+                      <AlertCircle className="size-4 shrink-0" />
+                      {submitError}
+                    </p>
+                  )}
+                  <Button type="button" variant="outline" onClick={() => { setOpen(false); setSubmitError(null); }}>
+                    Cancel
+                  </Button>
+                  <Button type="submit" disabled={isSubmitting}>
+                    {isSubmitting ? "Creating…" : "Create Task"}
+                  </Button>
+                </div>
+              </form>
+            </DialogContent>
+          </Dialog>
+        )}
+      </div>
+
+      {/* ── Summary cards ── */}
+      <div className="grid grid-cols-4 gap-3">
+        {[
+          { label: "Total",       value: tasks.length,                                        cls: "" },
+          { label: "In Progress", value: tasks.filter(t => t.status === "In Progress").length, cls: "text-blue-600" },
+          { label: "Done",        value: tasks.filter(t => t.status === "Done").length,        cls: "text-green-600" },
+          { label: "Overdue",     value: tasks.filter(t => t.due_date && isPast(parseISO(t.due_date)) && t.status !== "Done").length, cls: "text-red-600" },
+        ].map((s) => (
+          <div key={s.label} className="rounded-lg border bg-card p-4">
+            <p className="text-xs text-muted-foreground mb-1">{s.label}</p>
+            <p className={`text-2xl font-semibold ${s.cls}`}>{s.value}</p>
+          </div>
+        ))}
+      </div>
+
+      {/* ── Filters ── */}
+      <div className="flex gap-2 flex-wrap">
+        <div className="flex rounded-md border overflow-hidden text-sm">
+          {["All", "Todo", "In Progress", "Done"].map((s) => (
+            <button
+              key={s}
+              onClick={() => setFilterStatus(s)}
+              className={`px-3 py-1.5 border-r last:border-r-0 transition-colors ${
+                filterStatus === s
+                  ? "bg-primary text-primary-foreground font-medium"
+                  : "hover:bg-muted text-muted-foreground"
+              }`}
+            >
+              {s}
+            </button>
+          ))}
+        </div>
+
+        {userRole === "Director" && uniqueDeptNames.length > 0 && (
+          <div className="flex rounded-md border overflow-hidden text-sm">
+            {["All", ...uniqueDeptNames].map((d) => (
+              <button
+                key={d}
+                onClick={() => setFilterDept(d)}
+                className={`px-3 py-1.5 border-r last:border-r-0 transition-colors ${
+                  filterDept === d
+                    ? "bg-primary text-primary-foreground font-medium"
+                    : "hover:bg-muted text-muted-foreground"
+                }`}
+              >
+                {d}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* ── Task table ── */}
+      {filteredTasks.length === 0 ? (
+        <div className="text-center py-16 text-muted-foreground text-sm border rounded-lg">
+          No tasks found.
+        </div>
+      ) : (
+        <div className="rounded-lg border overflow-hidden">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b bg-muted/40">
+                <th className="text-left px-4 py-3 font-medium text-muted-foreground">Title</th>
+                {userRole === "Director" && (
+                  <th className="text-left px-4 py-3 font-medium text-muted-foreground">Department</th>
+                )}
+                <th className="text-left px-4 py-3 font-medium text-muted-foreground">Assignee</th>
+                <th className="text-left px-4 py-3 font-medium text-muted-foreground">Priority</th>
+                <th className="text-left px-4 py-3 font-medium text-muted-foreground">Due Date</th>
+                <th className="text-left px-4 py-3 font-medium text-muted-foreground">Status</th>
+                {canAssignOthers(userRole) && (
+                  <th className="text-left px-4 py-3 font-medium text-muted-foreground">Actions</th>
+                )}
+              </tr>
+            </thead>
+            <tbody>
+              {filteredTasks.map((task, i) => (
+                <tr
+                  key={task.id}
+                  className={`border-b last:border-0 hover:bg-muted/30 transition-colors ${
+                    i % 2 === 0 ? "" : "bg-muted/10"
+                  }`}
+                >
+                  <td className="px-4 py-3">
+                    <div className="font-medium">{task.title}</div>
+                    {task.description && (
+                      <div className="text-xs text-muted-foreground mt-0.5 line-clamp-1">{task.description}</div>
+                    )}
+                  </td>
+                  {userRole === "Director" && (
+                    <td className="px-4 py-3 text-muted-foreground">{task.department}</td>
+                  )}
+                  <td className="px-4 py-3">{task.assignee_name}</td>
+                  <td className="px-4 py-3"><PriorityBadge priority={task.priority} /></td>
+                  <td className="px-4 py-3">
+                    <div className="flex flex-col gap-1">
+                      <span className="text-muted-foreground">
+                        {task.due_date ? format(parseISO(task.due_date), "dd MMM yyyy") : "—"}
+                      </span>
+                      <DueBadge due_date={task.due_date} status={task.status} />
+                    </div>
+                  </td>
+                  <td className="px-4 py-3"><StatusBadge status={task.status} /></td>
+                  {canAssignOthers(userRole) && (
+                    <td className="px-4 py-3">
+                      {task.status !== "Done" && (
+                        <Select
+                          value={task.status}
+                          onValueChange={(v) => updateStatus(task.id, v)}
+                        >
+                          <SelectTrigger className="h-7 text-xs w-[120px]">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="Todo">Todo</SelectItem>
+                            <SelectItem value="In Progress">In Progress</SelectItem>
+                            <SelectItem value="Done">Done</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      )}
+                    </td>
+                  )}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+}
+
+export const Route = createFileRoute("/_app/task-assignment")({
+  component: TaskAssignmentPage,
+});

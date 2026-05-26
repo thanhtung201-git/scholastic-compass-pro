@@ -14,6 +14,7 @@ import { Route as AppRouteImport } from './routes/_app'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AppUsersRouteImport } from './routes/_app/users'
 import { Route as AppTuitionRouteImport } from './routes/_app/tuition'
+import { Route as AppTaskAssignmentRouteImport } from './routes/_app/task-assignment'
 import { Route as AppStudentsRouteImport } from './routes/_app/students'
 import { Route as AppScheduleRouteImport } from './routes/_app/schedule'
 import { Route as AppRoomsRouteImport } from './routes/_app/rooms'
@@ -46,6 +47,11 @@ const AppUsersRoute = AppUsersRouteImport.update({
 const AppTuitionRoute = AppTuitionRouteImport.update({
   id: '/tuition',
   path: '/tuition',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppTaskAssignmentRoute = AppTaskAssignmentRouteImport.update({
+  id: '/task-assignment',
+  path: '/task-assignment',
   getParentRoute: () => AppRoute,
 } as any)
 const AppStudentsRoute = AppStudentsRouteImport.update({
@@ -106,6 +112,7 @@ export interface FileRoutesByFullPath {
   '/rooms': typeof AppRoomsRoute
   '/schedule': typeof AppScheduleRoute
   '/students': typeof AppStudentsRoute
+  '/task-assignment': typeof AppTaskAssignmentRoute
   '/tuition': typeof AppTuitionRoute
   '/users': typeof AppUsersRoute
 }
@@ -121,6 +128,7 @@ export interface FileRoutesByTo {
   '/rooms': typeof AppRoomsRoute
   '/schedule': typeof AppScheduleRoute
   '/students': typeof AppStudentsRoute
+  '/task-assignment': typeof AppTaskAssignmentRoute
   '/tuition': typeof AppTuitionRoute
   '/users': typeof AppUsersRoute
 }
@@ -138,6 +146,7 @@ export interface FileRoutesById {
   '/_app/rooms': typeof AppRoomsRoute
   '/_app/schedule': typeof AppScheduleRoute
   '/_app/students': typeof AppStudentsRoute
+  '/_app/task-assignment': typeof AppTaskAssignmentRoute
   '/_app/tuition': typeof AppTuitionRoute
   '/_app/users': typeof AppUsersRoute
 }
@@ -155,6 +164,7 @@ export interface FileRouteTypes {
     | '/rooms'
     | '/schedule'
     | '/students'
+    | '/task-assignment'
     | '/tuition'
     | '/users'
   fileRoutesByTo: FileRoutesByTo
@@ -170,6 +180,7 @@ export interface FileRouteTypes {
     | '/rooms'
     | '/schedule'
     | '/students'
+    | '/task-assignment'
     | '/tuition'
     | '/users'
   id:
@@ -186,6 +197,7 @@ export interface FileRouteTypes {
     | '/_app/rooms'
     | '/_app/schedule'
     | '/_app/students'
+    | '/_app/task-assignment'
     | '/_app/tuition'
     | '/_app/users'
   fileRoutesById: FileRoutesById
@@ -231,6 +243,13 @@ declare module '@tanstack/react-router' {
       path: '/tuition'
       fullPath: '/tuition'
       preLoaderRoute: typeof AppTuitionRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/task-assignment': {
+      id: '/_app/task-assignment'
+      path: '/task-assignment'
+      fullPath: '/task-assignment'
+      preLoaderRoute: typeof AppTaskAssignmentRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/students': {
@@ -309,6 +328,7 @@ interface AppRouteChildren {
   AppRoomsRoute: typeof AppRoomsRoute
   AppScheduleRoute: typeof AppScheduleRoute
   AppStudentsRoute: typeof AppStudentsRoute
+  AppTaskAssignmentRoute: typeof AppTaskAssignmentRoute
   AppTuitionRoute: typeof AppTuitionRoute
   AppUsersRoute: typeof AppUsersRoute
 }
@@ -323,6 +343,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppRoomsRoute: AppRoomsRoute,
   AppScheduleRoute: AppScheduleRoute,
   AppStudentsRoute: AppStudentsRoute,
+  AppTaskAssignmentRoute: AppTaskAssignmentRoute,
   AppTuitionRoute: AppTuitionRoute,
   AppUsersRoute: AppUsersRoute,
 }
