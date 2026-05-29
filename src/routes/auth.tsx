@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useAuth } from "@/lib/auth-context";
-import { type Role } from "@/lib/types";
+import { type Role, ALL_ROLES } from "@/lib/types";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/auth")({
@@ -178,6 +178,17 @@ function SignUpForm({ onSubmit, onSuccess }: { onSubmit: ReturnType<typeof useAu
           <Label htmlFor="su-cf">Confirm</Label>
           <Input id="su-cf" type="password" required minLength={6} value={confirm} onChange={(e) => setConfirm(e.target.value)} placeholder="Repeat" />
         </div>
+      </div>
+      <div className="space-y-2">
+        <Label htmlFor="su-role">Role</Label>
+        <Select value={role} onValueChange={(v) => setRole(v as Role)}>
+          <SelectTrigger id="su-role">
+            <SelectValue placeholder="Select a role" />
+          </SelectTrigger>
+          <SelectContent>
+            {ALL_ROLES.map((r) => <SelectItem key={r} value={r}>{r}</SelectItem>)}
+          </SelectContent>
+        </Select>
       </div>
       <Button type="submit" className="w-full" disabled={loading}>
         {loading && <Loader2 className="size-4 animate-spin" />} Create Account

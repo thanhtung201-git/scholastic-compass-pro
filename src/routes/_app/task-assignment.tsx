@@ -33,13 +33,15 @@ type Task = {
 // ─── Role-based permission helpers ────────────────────────────────────────────
 
 // Roles that can assign tasks to others (not just themselves)
-const CAN_ASSIGN_ROLES = ["Director", "Finance Manager", "Academic Manager", "Admin"];
+const CAN_ASSIGN_ROLES = ["Director", "Finance Manager", "Academic Manager", "Admin", "HR Manager", "Marketing Manager"];
 
 // Departments each manager role controls
 const ROLE_DEPARTMENT_MAP: Record<string, string> = {
   "Finance Manager": "Finance",
   "Academic Manager": "Academic",
   "Admin": "IT",
+  "HR Manager": "Human Resource",
+  "Marketing Manager": "Marketing",
 };
 
 function canAssignOthers(role: string) {

@@ -3,20 +3,24 @@ export type Role =
   | "Academic Staff"
   | "Accountant"
   | "Director"
-  | "Teacher"
-  | "Student"
-  | "Receptionist"
   | "Finance Manager"
-  | "Academic Manager";
+  | "Academic Manager"
+  | "HR Manager"
+  | "HR Staff"
+  | "Marketing Manager"
+  | "Marketing Staff";
 
 export const ALL_ROLES: Role[] = [
   "Admin",
   "Academic Staff",
   "Accountant",
   "Director",
-  "Teacher",
-  "Student",
-  "Receptionist",
+  "Finance Manager",
+  "Academic Manager",
+  "HR Manager",
+  "HR Staff",
+  "Marketing Manager",
+  "Marketing Staff",
 ];
 
 export interface MockUser {

@@ -32,17 +32,17 @@ const navSections: NavSection[] = [
   {
     label: "Core",
     items: [
-      { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard, roles: ["Admin","Academic Staff","Accountant","Director","Teacher","Student","Receptionist"] },
+      { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard, roles: ["Admin", "Director"] },
     ]
   },
   {
     label: "Academic",
     items: [
-      { title: "Students", url: "/students", icon: Users, roles: ["Admin","Academic Staff","Director"] },
-      { title: "Classes", url: "/classes", icon: BookOpen, roles: ["Admin","Academic Staff","Director","Student"] },
-      { title: "Schedule", url: "/schedule", icon: Calendar, roles: ["Admin","Academic Staff","Director","Teacher","Student"] },
-      { title: "Attendance", url: "/attendance", icon: ClipboardCheck, roles: ["Teacher","Academic Staff","Admin"] },
-      { title: "Homework", url: "/homework", icon: ClipboardList, roles: ["Teacher","Student","Academic Staff"] },
+      { title: "Students", url: "/students", icon: Users, roles: ["Admin", "Director", "Academic Manager", "Academic Staff"] },
+      { title: "Classes", url: "/classes", icon: BookOpen, roles: ["Admin", "Director", "Academic Manager", "Academic Staff"] },
+      { title: "Schedule", url: "/schedule", icon: Calendar, roles: ["Admin", "Director", "Academic Manager", "Academic Staff"] },
+      { title: "Attendance", url: "/attendance", icon: ClipboardCheck, roles: ["Admin", "Director", "Academic Manager", "Academic Staff"] },
+      { title: "Homework", url: "/homework", icon: ClipboardList, roles: ["Admin", "Director", "Academic Manager", "Academic Staff"] },
     ]
   },
   {
@@ -52,6 +52,7 @@ const navSections: NavSection[] = [
       { title: "Payments", url: "/accounting/payments", icon: CreditCard, roles: ["Accountant","Admin","Director"] },
       { title: "Expenses", url: "/accounting/expenses", icon: Wallet, roles: ["Accountant","Admin","Director"] },
       { title: "Payroll", url: "/payroll", icon: Banknote, roles: ["Accountant","Academic Staff","Director","Teacher","Admin"] },
+      { title: "Rooms & Guests", url: "/rooms", icon: DoorOpen, roles: ["Admin", "Director", "Finance Manager", "Accountant"] },
     ]
   },
   {
@@ -68,21 +69,23 @@ const navSections: NavSection[] = [
           { title: "Sources", url: "/marketing/sources", icon: BookOpen, roles: ["Admin", "Director"] },
           { title: "Follow-up", url: "/marketing/follow-up", icon: ClipboardList, roles: ["Admin", "Director", "Academic Staff"] },
           { title: "Promotions", url: "/marketing/promotions", icon: Tag, roles: ["Admin", "Director"] },
-
         ],
       },
     ]
   },
   {
-    label: "Operations",
+    label: "Human Resources",
     items: [
-      { title: "Rooms & Guests", url: "/rooms", icon: DoorOpen, roles: ["Receptionist","Admin"] },
+      { title: "Teachers", url: "/teachers", icon: Users, roles: ["Admin", "Director", "HR Manager", "HR Staff"] },
+      { title: "Employees", url: "/employees", icon: Users, roles: ["Admin", "Director", "HR Manager", "HR Staff"] },
+      { title: "Attendance Tracking", url: "/attendance-tracking", icon: ClipboardCheck, roles: ["Admin", "Director", "HR Manager", "HR Staff"] },
+      { title: "Leave Approve", url: "/leave-approve", icon: ClipboardList, roles: ["Admin", "Director", "HR Manager", "HR Staff"] },
     ]
   },
   {
     label: "Project Management",
     items: [
-      { title: "Task Assignment", url: "/task-assignment", icon: CheckSquare, roles: ["Director","Finance Manager","Academic Manager","Admin","Accountant","Academic Staff"] },
+      { title: "Task Assignment", url: "/task-assignment", icon: CheckSquare, roles: ["Admin", "Director", "HR Manager", "HR Staff", "Academic Manager", "Academic Staff", "Finance Manager", "Accountant", "Marketing Manager", "Marketing Staff"] },
     ]
   },
   {

@@ -155,7 +155,7 @@ function AttendancePage() {
             {roster.map((s) => (
               <div key={s.student_id} className="flex items-center gap-3 rounded-lg border p-3">
                 <div className="size-9 rounded-full bg-primary/10 text-primary flex items-center justify-center font-medium text-xs">
-                  {s.student_name ? s.student_name.split(" ").slice(-2).map((n) => n[0]).join("") : "ST"}
+                  {s.student_name ? s.student_name.split(" ").slice(-2).map((n: string) => n[0]).join("") : "ST"}
                 </div>
                 <div className="flex-1 font-medium text-sm">{s.student_name}</div>
                 <div className="flex gap-1">
