@@ -10,6 +10,7 @@ import {
 import appCss from "../styles.css?url";
 import { AuthProvider } from "@/lib/auth-context";
 import { DatabaseProvider } from "@/hooks/use-database";
+import { MarketingProvider } from "@/hooks/use-marketing";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 
@@ -83,10 +84,12 @@ function RootComponent() {
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
         <DatabaseProvider>
-          <TooltipProvider>
-            <Outlet />
-            <Toaster />
-          </TooltipProvider>
+          <MarketingProvider>
+            <TooltipProvider>
+              <Outlet />
+              <Toaster />
+            </TooltipProvider>
+          </MarketingProvider>
         </DatabaseProvider>
       </AuthProvider>
     </QueryClientProvider>

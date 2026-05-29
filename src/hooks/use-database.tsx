@@ -17,6 +17,10 @@ interface DbContextType {
   homeworkAssignments: any[];
   submissions: any[];
   tuitionInvoices: any[];
+  tuitionPayments: any[];
+  invoiceInstallments: any[];
+  expenses: any[];
+  payrollSlips: any[];
   attendanceLogs: any[];
   auditLogs: any[];
   users: any[];
@@ -41,6 +45,13 @@ interface DbContextType {
   deleteSchedule: (id: string) => Promise<void>;
   deleteStudent: (id: string) => Promise<void>;
   deleteUser: (id: string) => Promise<void>;
+
+  addTuitionPayment: (payment: any) => Promise<void>;
+  addExpense: (expense: any) => Promise<void>;
+  updateExpense: (id: string, expense: any) => Promise<void>;
+  deleteExpense: (id: string) => Promise<void>;
+  addPayrollSlip: (slip: any) => Promise<void>;
+  updatePayrollSlipStatus: (id: string, status: string) => Promise<void>;
 }
 
 const DbContext = createContext<DbContextType | null>(null);
@@ -149,6 +160,43 @@ export function DatabaseProvider({ children }: { children: ReactNode }) {
     }
   });
 
+  const { data: tuitionPayments = [], isLoading: loadPayments } = useQuery({
+    queryKey: ["tuition_payments"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("tuition_payments").select("*");
+      // Ignore error if table doesn't exist yet
+      if (error) return [];
+      return data;
+    }
+  });
+
+  const { data: invoiceInstallments = [], isLoading: loadInstallments } = useQuery({
+    queryKey: ["invoice_installments"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("invoice_installments").select("*");
+      if (error) return [];
+      return data;
+    }
+  });
+
+  const { data: expenses = [], isLoading: loadExpenses } = useQuery({
+    queryKey: ["expenses"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("expenses").select("*");
+      if (error) return [];
+      return data;
+    }
+  });
+
+  const { data: payrollSlips = [], isLoading: loadPayroll } = useQuery({
+    queryKey: ["payroll_slips"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("payroll_slips").select("*");
+      if (error) return [];
+      return data;
+    }
+  });
+
   const { data: attendanceLogs = [], isLoading: loadAttendance } = useQuery({
     queryKey: ["attendance_logs"],
     queryFn: async () => {
@@ -193,6 +241,10 @@ export function DatabaseProvider({ children }: { children: ReactNode }) {
     loadHomework ||
     loadSubmissions ||
     loadInvoices ||
+    loadPayments ||
+    loadInstallments ||
+    loadExpenses ||
+    loadPayroll ||
     loadAttendance ||
     loadAudit ||
     loadUsers ||
@@ -618,10 +670,26 @@ export function DatabaseProvider({ children }: { children: ReactNode }) {
         })
         .eq("id", inv.enrolment_id);
       if (enrolErr) throw enrolErr;
+
+      // 4. Insert into tuition_payments
+      const paymentRecord = {
+        id: crypto.randomUUID(),
+        invoice_id: invoiceId,
+        student_id: inv.student_id,
+        amount: amountPaid,
+        payment_method: method,
+        payment_date: new Date().toISOString()
+      };
+      const { error: payErr } = await supabase.from("tuition_payments").insert([paymentRecord]);
+      // If table doesn't exist, ignore (so it doesn't crash before SQL is run)
+      if (payErr && !payErr.message.includes("relation \"tuition_payments\" does not exist")) {
+        throw payErr;
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["tuition_invoices"] });
       queryClient.invalidateQueries({ queryKey: ["enrolments"] });
+      queryClient.invalidateQueries({ queryKey: ["tuition_payments"] });
       toast.success("Payment recorded successfully!");
     },
     onError: (err) => {
@@ -789,6 +857,45 @@ export function DatabaseProvider({ children }: { children: ReactNode }) {
     await toggleUserStatusMutation.mutateAsync({ id, status });
   };
 
+  const addTuitionPayment = async (payment: any) => {
+    // 1. Insert payment record
+    const { error: payErr } = await supabase.from("tuition_payments").insert([payment]);
+    if (payErr) throw payErr;
+    
+    // 2. Refresh lists
+    queryClient.invalidateQueries({ queryKey: ["tuition_payments"] });
+  };
+
+  const addExpense = async (expense: any) => {
+    const { error } = await supabase.from("expenses").insert([expense]);
+    if (error) throw error;
+    queryClient.invalidateQueries({ queryKey: ["expenses"] });
+  };
+
+  const updateExpense = async (id: string, expense: any) => {
+    const { error } = await supabase.from("expenses").update(expense).eq("id", id);
+    if (error) throw error;
+    queryClient.invalidateQueries({ queryKey: ["expenses"] });
+  };
+
+  const deleteExpense = async (id: string) => {
+    const { error } = await supabase.from("expenses").delete().eq("id", id);
+    if (error) throw error;
+    queryClient.invalidateQueries({ queryKey: ["expenses"] });
+  };
+
+  const addPayrollSlip = async (slip: any) => {
+    const { error } = await supabase.from("payroll_slips").insert([slip]);
+    if (error) throw error;
+    queryClient.invalidateQueries({ queryKey: ["payroll_slips"] });
+  };
+
+  const updatePayrollSlipStatus = async (id: string, status: string) => {
+    const { error } = await supabase.from("payroll_slips").update({ status }).eq("id", id);
+    if (error) throw error;
+    queryClient.invalidateQueries({ queryKey: ["payroll_slips"] });
+  };
+
   const updateUserRole = async (id: string, role: Role) => {
     await updateUserRoleMutation.mutateAsync({ id, role });
   };
@@ -880,6 +987,10 @@ export function DatabaseProvider({ children }: { children: ReactNode }) {
         homeworkAssignments,
         submissions,
         tuitionInvoices,
+        tuitionPayments,
+        invoiceInstallments,
+        expenses,
+        payrollSlips,
         attendanceLogs,
         auditLogs,
         users,
@@ -901,7 +1012,13 @@ export function DatabaseProvider({ children }: { children: ReactNode }) {
         updateSchedule,
         deleteSchedule,
         deleteStudent,
-        deleteUser
+        deleteUser,
+        addTuitionPayment,
+        addExpense,
+        updateExpense,
+        deleteExpense,
+        addPayrollSlip,
+        updatePayrollSlipStatus
       }}
     >
       {children}

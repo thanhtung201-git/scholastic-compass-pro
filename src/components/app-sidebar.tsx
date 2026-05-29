@@ -1,12 +1,14 @@
 import { Link, useRouterState } from "@tanstack/react-router";
+import { useState } from "react";
 import {
   LayoutDashboard, Users, BookOpen, Calendar, ClipboardList, GraduationCap,
-  Receipt, ClipboardCheck, Banknote, Shield, DoorOpen, FileText, CheckSquare, type LucideIcon,
+  Receipt, ClipboardCheck, Banknote, Shield, DoorOpen, FileText, CheckSquare, Target, ChevronDown, Tag, CreditCard, Wallet, type LucideIcon,
 } from "lucide-react";
 import {
   Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGroupLabel,
   SidebarHeader, SidebarMenu, SidebarMenuButton, SidebarMenuItem, useSidebar,
 } from "@/components/ui/sidebar";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import type { Role } from "@/lib/types";
 
 interface NavItem { 
@@ -18,7 +20,11 @@ interface NavItem {
 
 interface NavSection {
   label: string;
-  items: NavItem[];
+  items: (NavItem | NavItemWithChildren)[];
+}
+
+interface NavItemWithChildren extends NavItem {
+  children?: NavItem[];
 }
 
 // Navigation sections organized by category
@@ -42,8 +48,29 @@ const navSections: NavSection[] = [
   {
     label: "Finance & Accounting",
     items: [
-      { title: "Tuition", url: "/tuition", icon: Receipt, roles: ["Accountant","Admin","Director","Student"] },
+      { title: "Tuition Invoices", url: "/tuition", icon: Receipt, roles: ["Accountant","Admin","Director","Student"] },
+      { title: "Payments", url: "/accounting/payments", icon: CreditCard, roles: ["Accountant","Admin","Director"] },
+      { title: "Expenses", url: "/accounting/expenses", icon: Wallet, roles: ["Accountant","Admin","Director"] },
       { title: "Payroll", url: "/payroll", icon: Banknote, roles: ["Accountant","Academic Staff","Director","Teacher","Admin"] },
+    ]
+  },
+  {
+    label: "Marketing",
+    items: [
+      {
+        title: "Marketing",
+        url: "/marketing",
+        icon: Target,
+        roles: ["Admin", "Director", "Academic Staff"],
+        children: [
+          { title: "Leads", url: "/marketing/leads", icon: Users, roles: ["Admin", "Director", "Academic Staff"] },
+          { title: "Campaigns", url: "/marketing/campaigns", icon: CheckSquare, roles: ["Admin", "Director", "Academic Staff"] },
+          { title: "Sources", url: "/marketing/sources", icon: BookOpen, roles: ["Admin", "Director"] },
+          { title: "Follow-up", url: "/marketing/follow-up", icon: ClipboardList, roles: ["Admin", "Director", "Academic Staff"] },
+          { title: "Promotions", url: "/marketing/promotions", icon: Tag, roles: ["Admin", "Director"] },
+
+        ],
+      },
     ]
   },
   {
@@ -71,6 +98,11 @@ export function AppSidebar({ role }: { role: Role }) {
   const { state } = useSidebar();
   const collapsed = state === "collapsed";
   const path = useRouterState({ select: (r) => r.location.pathname });
+  const [openMenus, setOpenMenus] = useState<Record<string, boolean>>({});
+
+  const toggleMenu = (title: string) => {
+    setOpenMenus((prev) => ({ ...prev, [title]: !prev[title] }));
+  };
 
   return (
     <Sidebar collapsible="icon">
@@ -98,7 +130,79 @@ export function AppSidebar({ role }: { role: Role }) {
               <SidebarGroupContent>
                 <SidebarMenu>
                   {visibleItems.map((item) => {
+                    const hasChildren = "children" in item && item.children;
+                    const isOpen = openMenus[item.title];
                     const active = path === item.url;
+                    
+                    if (hasChildren && item.children) {
+                      const visibleChildren = item.children.filter((child) =>
+                        child.roles.includes(role)
+                      );
+
+                      if (visibleChildren.length === 0) {
+                        // If no visible children, render as regular item
+                        return (
+                          <SidebarMenuItem key={item.url}>
+                            <SidebarMenuButton asChild isActive={active}>
+                              <Link to={item.url} className="flex items-center gap-2">
+                                <item.icon className="size-4" />
+                                {!collapsed && <span>{item.title}</span>}
+                              </Link>
+                            </SidebarMenuButton>
+                          </SidebarMenuItem>
+                        );
+                      }
+
+                      return (
+                        <Collapsible
+                          key={item.title}
+                          open={isOpen}
+                          onOpenChange={() => toggleMenu(item.title)}
+                        >
+                          <SidebarMenuItem>
+                            <CollapsibleTrigger asChild>
+                              <SidebarMenuButton
+                                className="flex items-center justify-between"
+                              >
+                                <div className="flex items-center gap-2">
+                                  <item.icon className="size-4" />
+                                  {!collapsed && <span>{item.title}</span>}
+                                </div>
+                                {!collapsed && (
+                                  <ChevronDown
+                                    className={`size-4 transition-transform ${
+                                      isOpen ? "rotate-180" : ""
+                                    }`}
+                                  />
+                                )}
+                              </SidebarMenuButton>
+                            </CollapsibleTrigger>
+                            <CollapsibleContent>
+                              <SidebarMenu className="pl-8 gap-2">
+                                {visibleChildren.map((child) => {
+                                  const childActive = path === child.url;
+                                  return (
+                                    <SidebarMenuItem key={child.url}>
+                                      <SidebarMenuButton asChild isActive={childActive}>
+                                        <Link
+                                          to={child.url}
+                                          className="flex items-center gap-2"
+                                        >
+                                          <child.icon className="size-4" />
+                                          {!collapsed && <span>{child.title}</span>}
+                                        </Link>
+                                      </SidebarMenuButton>
+                                    </SidebarMenuItem>
+                                  );
+                                })}
+                              </SidebarMenu>
+                            </CollapsibleContent>
+                          </SidebarMenuItem>
+                        </Collapsible>
+                      );
+                    }
+
+                    // Regular item without children
                     return (
                       <SidebarMenuItem key={item.url}>
                         <SidebarMenuButton asChild isActive={active}>

@@ -19,11 +19,21 @@ import { Route as AppStudentsRouteImport } from './routes/_app/students'
 import { Route as AppScheduleRouteImport } from './routes/_app/schedule'
 import { Route as AppRoomsRouteImport } from './routes/_app/rooms'
 import { Route as AppPayrollRouteImport } from './routes/_app/payroll'
+import { Route as AppMarketingRouteImport } from './routes/_app/marketing'
 import { Route as AppHomeworkRouteImport } from './routes/_app/homework'
 import { Route as AppDashboardRouteImport } from './routes/_app/dashboard'
 import { Route as AppClassesRouteImport } from './routes/_app/classes'
 import { Route as AppAuditRouteImport } from './routes/_app/audit'
 import { Route as AppAttendanceRouteImport } from './routes/_app/attendance'
+import { Route as AppMarketingSourcesRouteImport } from './routes/_app/marketing.sources'
+import { Route as AppMarketingReportsRouteImport } from './routes/_app/marketing.reports'
+import { Route as AppMarketingPromotionsRouteImport } from './routes/_app/marketing.promotions'
+import { Route as AppMarketingLeadsRouteImport } from './routes/_app/marketing.leads'
+import { Route as AppMarketingFollowUpRouteImport } from './routes/_app/marketing.follow-up'
+import { Route as AppMarketingCampaignsRouteImport } from './routes/_app/marketing.campaigns'
+import { Route as AppAccountingPaymentsRouteImport } from './routes/_app/accounting.payments'
+import { Route as AppAccountingExpensesRouteImport } from './routes/_app/accounting.expenses'
+import { Route as AppMarketingLeadsIdRouteImport } from './routes/_app/marketing.leads.$id'
 
 const AuthRoute = AuthRouteImport.update({
   id: '/auth',
@@ -74,6 +84,11 @@ const AppPayrollRoute = AppPayrollRouteImport.update({
   path: '/payroll',
   getParentRoute: () => AppRoute,
 } as any)
+const AppMarketingRoute = AppMarketingRouteImport.update({
+  id: '/marketing',
+  path: '/marketing',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppHomeworkRoute = AppHomeworkRouteImport.update({
   id: '/homework',
   path: '/homework',
@@ -99,6 +114,51 @@ const AppAttendanceRoute = AppAttendanceRouteImport.update({
   path: '/attendance',
   getParentRoute: () => AppRoute,
 } as any)
+const AppMarketingSourcesRoute = AppMarketingSourcesRouteImport.update({
+  id: '/sources',
+  path: '/sources',
+  getParentRoute: () => AppMarketingRoute,
+} as any)
+const AppMarketingReportsRoute = AppMarketingReportsRouteImport.update({
+  id: '/reports',
+  path: '/reports',
+  getParentRoute: () => AppMarketingRoute,
+} as any)
+const AppMarketingPromotionsRoute = AppMarketingPromotionsRouteImport.update({
+  id: '/promotions',
+  path: '/promotions',
+  getParentRoute: () => AppMarketingRoute,
+} as any)
+const AppMarketingLeadsRoute = AppMarketingLeadsRouteImport.update({
+  id: '/leads',
+  path: '/leads',
+  getParentRoute: () => AppMarketingRoute,
+} as any)
+const AppMarketingFollowUpRoute = AppMarketingFollowUpRouteImport.update({
+  id: '/follow-up',
+  path: '/follow-up',
+  getParentRoute: () => AppMarketingRoute,
+} as any)
+const AppMarketingCampaignsRoute = AppMarketingCampaignsRouteImport.update({
+  id: '/campaigns',
+  path: '/campaigns',
+  getParentRoute: () => AppMarketingRoute,
+} as any)
+const AppAccountingPaymentsRoute = AppAccountingPaymentsRouteImport.update({
+  id: '/accounting/payments',
+  path: '/accounting/payments',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppAccountingExpensesRoute = AppAccountingExpensesRouteImport.update({
+  id: '/accounting/expenses',
+  path: '/accounting/expenses',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppMarketingLeadsIdRoute = AppMarketingLeadsIdRouteImport.update({
+  id: '/$id',
+  path: '/$id',
+  getParentRoute: () => AppMarketingLeadsRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -108,6 +168,7 @@ export interface FileRoutesByFullPath {
   '/classes': typeof AppClassesRoute
   '/dashboard': typeof AppDashboardRoute
   '/homework': typeof AppHomeworkRoute
+  '/marketing': typeof AppMarketingRouteWithChildren
   '/payroll': typeof AppPayrollRoute
   '/rooms': typeof AppRoomsRoute
   '/schedule': typeof AppScheduleRoute
@@ -115,6 +176,15 @@ export interface FileRoutesByFullPath {
   '/task-assignment': typeof AppTaskAssignmentRoute
   '/tuition': typeof AppTuitionRoute
   '/users': typeof AppUsersRoute
+  '/accounting/expenses': typeof AppAccountingExpensesRoute
+  '/accounting/payments': typeof AppAccountingPaymentsRoute
+  '/marketing/campaigns': typeof AppMarketingCampaignsRoute
+  '/marketing/follow-up': typeof AppMarketingFollowUpRoute
+  '/marketing/leads': typeof AppMarketingLeadsRouteWithChildren
+  '/marketing/promotions': typeof AppMarketingPromotionsRoute
+  '/marketing/reports': typeof AppMarketingReportsRoute
+  '/marketing/sources': typeof AppMarketingSourcesRoute
+  '/marketing/leads/$id': typeof AppMarketingLeadsIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -124,6 +194,7 @@ export interface FileRoutesByTo {
   '/classes': typeof AppClassesRoute
   '/dashboard': typeof AppDashboardRoute
   '/homework': typeof AppHomeworkRoute
+  '/marketing': typeof AppMarketingRouteWithChildren
   '/payroll': typeof AppPayrollRoute
   '/rooms': typeof AppRoomsRoute
   '/schedule': typeof AppScheduleRoute
@@ -131,6 +202,15 @@ export interface FileRoutesByTo {
   '/task-assignment': typeof AppTaskAssignmentRoute
   '/tuition': typeof AppTuitionRoute
   '/users': typeof AppUsersRoute
+  '/accounting/expenses': typeof AppAccountingExpensesRoute
+  '/accounting/payments': typeof AppAccountingPaymentsRoute
+  '/marketing/campaigns': typeof AppMarketingCampaignsRoute
+  '/marketing/follow-up': typeof AppMarketingFollowUpRoute
+  '/marketing/leads': typeof AppMarketingLeadsRouteWithChildren
+  '/marketing/promotions': typeof AppMarketingPromotionsRoute
+  '/marketing/reports': typeof AppMarketingReportsRoute
+  '/marketing/sources': typeof AppMarketingSourcesRoute
+  '/marketing/leads/$id': typeof AppMarketingLeadsIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -142,6 +222,7 @@ export interface FileRoutesById {
   '/_app/classes': typeof AppClassesRoute
   '/_app/dashboard': typeof AppDashboardRoute
   '/_app/homework': typeof AppHomeworkRoute
+  '/_app/marketing': typeof AppMarketingRouteWithChildren
   '/_app/payroll': typeof AppPayrollRoute
   '/_app/rooms': typeof AppRoomsRoute
   '/_app/schedule': typeof AppScheduleRoute
@@ -149,6 +230,15 @@ export interface FileRoutesById {
   '/_app/task-assignment': typeof AppTaskAssignmentRoute
   '/_app/tuition': typeof AppTuitionRoute
   '/_app/users': typeof AppUsersRoute
+  '/_app/accounting/expenses': typeof AppAccountingExpensesRoute
+  '/_app/accounting/payments': typeof AppAccountingPaymentsRoute
+  '/_app/marketing/campaigns': typeof AppMarketingCampaignsRoute
+  '/_app/marketing/follow-up': typeof AppMarketingFollowUpRoute
+  '/_app/marketing/leads': typeof AppMarketingLeadsRouteWithChildren
+  '/_app/marketing/promotions': typeof AppMarketingPromotionsRoute
+  '/_app/marketing/reports': typeof AppMarketingReportsRoute
+  '/_app/marketing/sources': typeof AppMarketingSourcesRoute
+  '/_app/marketing/leads/$id': typeof AppMarketingLeadsIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -160,6 +250,7 @@ export interface FileRouteTypes {
     | '/classes'
     | '/dashboard'
     | '/homework'
+    | '/marketing'
     | '/payroll'
     | '/rooms'
     | '/schedule'
@@ -167,6 +258,15 @@ export interface FileRouteTypes {
     | '/task-assignment'
     | '/tuition'
     | '/users'
+    | '/accounting/expenses'
+    | '/accounting/payments'
+    | '/marketing/campaigns'
+    | '/marketing/follow-up'
+    | '/marketing/leads'
+    | '/marketing/promotions'
+    | '/marketing/reports'
+    | '/marketing/sources'
+    | '/marketing/leads/$id'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -176,6 +276,7 @@ export interface FileRouteTypes {
     | '/classes'
     | '/dashboard'
     | '/homework'
+    | '/marketing'
     | '/payroll'
     | '/rooms'
     | '/schedule'
@@ -183,6 +284,15 @@ export interface FileRouteTypes {
     | '/task-assignment'
     | '/tuition'
     | '/users'
+    | '/accounting/expenses'
+    | '/accounting/payments'
+    | '/marketing/campaigns'
+    | '/marketing/follow-up'
+    | '/marketing/leads'
+    | '/marketing/promotions'
+    | '/marketing/reports'
+    | '/marketing/sources'
+    | '/marketing/leads/$id'
   id:
     | '__root__'
     | '/'
@@ -193,6 +303,7 @@ export interface FileRouteTypes {
     | '/_app/classes'
     | '/_app/dashboard'
     | '/_app/homework'
+    | '/_app/marketing'
     | '/_app/payroll'
     | '/_app/rooms'
     | '/_app/schedule'
@@ -200,6 +311,15 @@ export interface FileRouteTypes {
     | '/_app/task-assignment'
     | '/_app/tuition'
     | '/_app/users'
+    | '/_app/accounting/expenses'
+    | '/_app/accounting/payments'
+    | '/_app/marketing/campaigns'
+    | '/_app/marketing/follow-up'
+    | '/_app/marketing/leads'
+    | '/_app/marketing/promotions'
+    | '/_app/marketing/reports'
+    | '/_app/marketing/sources'
+    | '/_app/marketing/leads/$id'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -280,6 +400,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppPayrollRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/marketing': {
+      id: '/_app/marketing'
+      path: '/marketing'
+      fullPath: '/marketing'
+      preLoaderRoute: typeof AppMarketingRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/homework': {
       id: '/_app/homework'
       path: '/homework'
@@ -315,8 +442,104 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppAttendanceRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/marketing/sources': {
+      id: '/_app/marketing/sources'
+      path: '/sources'
+      fullPath: '/marketing/sources'
+      preLoaderRoute: typeof AppMarketingSourcesRouteImport
+      parentRoute: typeof AppMarketingRoute
+    }
+    '/_app/marketing/reports': {
+      id: '/_app/marketing/reports'
+      path: '/reports'
+      fullPath: '/marketing/reports'
+      preLoaderRoute: typeof AppMarketingReportsRouteImport
+      parentRoute: typeof AppMarketingRoute
+    }
+    '/_app/marketing/promotions': {
+      id: '/_app/marketing/promotions'
+      path: '/promotions'
+      fullPath: '/marketing/promotions'
+      preLoaderRoute: typeof AppMarketingPromotionsRouteImport
+      parentRoute: typeof AppMarketingRoute
+    }
+    '/_app/marketing/leads': {
+      id: '/_app/marketing/leads'
+      path: '/leads'
+      fullPath: '/marketing/leads'
+      preLoaderRoute: typeof AppMarketingLeadsRouteImport
+      parentRoute: typeof AppMarketingRoute
+    }
+    '/_app/marketing/follow-up': {
+      id: '/_app/marketing/follow-up'
+      path: '/follow-up'
+      fullPath: '/marketing/follow-up'
+      preLoaderRoute: typeof AppMarketingFollowUpRouteImport
+      parentRoute: typeof AppMarketingRoute
+    }
+    '/_app/marketing/campaigns': {
+      id: '/_app/marketing/campaigns'
+      path: '/campaigns'
+      fullPath: '/marketing/campaigns'
+      preLoaderRoute: typeof AppMarketingCampaignsRouteImport
+      parentRoute: typeof AppMarketingRoute
+    }
+    '/_app/accounting/payments': {
+      id: '/_app/accounting/payments'
+      path: '/accounting/payments'
+      fullPath: '/accounting/payments'
+      preLoaderRoute: typeof AppAccountingPaymentsRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/accounting/expenses': {
+      id: '/_app/accounting/expenses'
+      path: '/accounting/expenses'
+      fullPath: '/accounting/expenses'
+      preLoaderRoute: typeof AppAccountingExpensesRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/marketing/leads/$id': {
+      id: '/_app/marketing/leads/$id'
+      path: '/$id'
+      fullPath: '/marketing/leads/$id'
+      preLoaderRoute: typeof AppMarketingLeadsIdRouteImport
+      parentRoute: typeof AppMarketingLeadsRoute
+    }
   }
 }
+
+interface AppMarketingLeadsRouteChildren {
+  AppMarketingLeadsIdRoute: typeof AppMarketingLeadsIdRoute
+}
+
+const AppMarketingLeadsRouteChildren: AppMarketingLeadsRouteChildren = {
+  AppMarketingLeadsIdRoute: AppMarketingLeadsIdRoute,
+}
+
+const AppMarketingLeadsRouteWithChildren =
+  AppMarketingLeadsRoute._addFileChildren(AppMarketingLeadsRouteChildren)
+
+interface AppMarketingRouteChildren {
+  AppMarketingCampaignsRoute: typeof AppMarketingCampaignsRoute
+  AppMarketingFollowUpRoute: typeof AppMarketingFollowUpRoute
+  AppMarketingLeadsRoute: typeof AppMarketingLeadsRouteWithChildren
+  AppMarketingPromotionsRoute: typeof AppMarketingPromotionsRoute
+  AppMarketingReportsRoute: typeof AppMarketingReportsRoute
+  AppMarketingSourcesRoute: typeof AppMarketingSourcesRoute
+}
+
+const AppMarketingRouteChildren: AppMarketingRouteChildren = {
+  AppMarketingCampaignsRoute: AppMarketingCampaignsRoute,
+  AppMarketingFollowUpRoute: AppMarketingFollowUpRoute,
+  AppMarketingLeadsRoute: AppMarketingLeadsRouteWithChildren,
+  AppMarketingPromotionsRoute: AppMarketingPromotionsRoute,
+  AppMarketingReportsRoute: AppMarketingReportsRoute,
+  AppMarketingSourcesRoute: AppMarketingSourcesRoute,
+}
+
+const AppMarketingRouteWithChildren = AppMarketingRoute._addFileChildren(
+  AppMarketingRouteChildren,
+)
 
 interface AppRouteChildren {
   AppAttendanceRoute: typeof AppAttendanceRoute
@@ -324,6 +547,7 @@ interface AppRouteChildren {
   AppClassesRoute: typeof AppClassesRoute
   AppDashboardRoute: typeof AppDashboardRoute
   AppHomeworkRoute: typeof AppHomeworkRoute
+  AppMarketingRoute: typeof AppMarketingRouteWithChildren
   AppPayrollRoute: typeof AppPayrollRoute
   AppRoomsRoute: typeof AppRoomsRoute
   AppScheduleRoute: typeof AppScheduleRoute
@@ -331,6 +555,8 @@ interface AppRouteChildren {
   AppTaskAssignmentRoute: typeof AppTaskAssignmentRoute
   AppTuitionRoute: typeof AppTuitionRoute
   AppUsersRoute: typeof AppUsersRoute
+  AppAccountingExpensesRoute: typeof AppAccountingExpensesRoute
+  AppAccountingPaymentsRoute: typeof AppAccountingPaymentsRoute
 }
 
 const AppRouteChildren: AppRouteChildren = {
@@ -339,6 +565,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppClassesRoute: AppClassesRoute,
   AppDashboardRoute: AppDashboardRoute,
   AppHomeworkRoute: AppHomeworkRoute,
+  AppMarketingRoute: AppMarketingRouteWithChildren,
   AppPayrollRoute: AppPayrollRoute,
   AppRoomsRoute: AppRoomsRoute,
   AppScheduleRoute: AppScheduleRoute,
@@ -346,6 +573,8 @@ const AppRouteChildren: AppRouteChildren = {
   AppTaskAssignmentRoute: AppTaskAssignmentRoute,
   AppTuitionRoute: AppTuitionRoute,
   AppUsersRoute: AppUsersRoute,
+  AppAccountingExpensesRoute: AppAccountingExpensesRoute,
+  AppAccountingPaymentsRoute: AppAccountingPaymentsRoute,
 }
 
 const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)

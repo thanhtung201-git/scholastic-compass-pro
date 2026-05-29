@@ -9,10 +9,11 @@ import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Search, Receipt, CreditCard, Loader2 } from "lucide-react";
+import { Search, Receipt, CreditCard, Loader2, Eye, Printer, Download } from "lucide-react";
 import { useDatabase } from "@/hooks/use-database";
 import { useAuth } from "@/lib/auth-context";
 import { toast } from "sonner";
+import { supabase } from "@/lib/supabase"; // Đảm bảo import đúng đường dẫn supabase client của bạn
 
 export const Route = createFileRoute("/_app/tuition")({ component: TuitionPage });
 
@@ -20,7 +21,8 @@ const formatVND = (n: number) =>
   new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND", maximumFractionDigits: 0 }).format(n);
 
 function TuitionPage() {
-  const { tuitionInvoices, students, updateTuitionPayment, addAuditLog, loading } = useDatabase();
+  // Loại bỏ biến không dùng tuitionPayments để tránh lỗi compile
+  const { tuitionInvoices, students, enrolments, classes, addAuditLog, loading } = useDatabase();
   const { user: currentUser } = useAuth();
 
   const [q, setQ] = useState("");
@@ -28,6 +30,13 @@ function TuitionPage() {
   const [amount, setAmount] = useState("");
   const [method, setMethod] = useState("Bank Transfer");
   const [submitting, setSubmitting] = useState(false);
+  const [detailId, setDetailId] = useState<string | null>(null);
+
+  const getInvoiceStatus = (i: any) => {
+    if (i.status === "Paid") return "Paid";
+    if (i.due_date && new Date(i.due_date) < new Date() && Number(i.remaining_debt) > 0) return "Overdue";
+    return i.status;
+  };
 
   const filtered = tuitionInvoices.filter((i) => {
     const s = students.find((st) => st.id === i.student_id);
@@ -41,7 +50,30 @@ function TuitionPage() {
   };
 
   const paying = tuitionInvoices.find((i) => i.id === payingId);
+  const detailInvoice = tuitionInvoices.find((i) => i.id === detailId);
 
+  const exportCSV = () => {
+    const headers = ["Invoice ID", "Student", "Amount Due", "Paid", "Remaining", "Due Date", "Status"];
+    const rows = filtered.map(i => [
+      i.id,
+      students.find(s => s.id === i.student_id)?.name || "",
+      i.amount_due,
+      i.amount_paid,
+      i.remaining_debt,
+      i.due_date || "",
+      getInvoiceStatus(i)
+    ]);
+    const csvContent = "data:text/csv;charset=utf-8," + [headers.join(","), ...rows.map(e => e.join(","))].join("\n");
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", "invoices.csv");
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  // SỬA ĐỔI: Hàm ghi nhận thanh toán trực tiếp vào bảng 'tuition_invoices'
   const recordPayment = async () => {
     if (!paying) return;
     const amt = Number(amount);
@@ -50,8 +82,24 @@ function TuitionPage() {
     
     setSubmitting(true);
     try {
-      await updateTuitionPayment(paying.id, amt, method);
-      
+      const newAmountPaid = Number(paying.amount_paid || 0) + amt;
+      const newRemainingDebt = Number(paying.amount_due || 0) - newAmountPaid;
+      const newStatus = newRemainingDebt <= 0 ? "Paid" : "Partially Paid";
+
+      // Gọi trực tiếp bảng tuition_invoices chuẩn theo cấu trúc DB hiện tại của bạn
+      const { error } = await supabase
+        .from("tuition_invoices")
+        .update({
+          amount_paid: newAmountPaid,
+          remaining_debt: newRemainingDebt,
+          status: newStatus,
+          payment_method: method,
+          payment_note: `Paid ${formatVND(amt)} via ${method} on ${new Date().toLocaleDateString()}`
+        })
+        .eq("id", paying.id);
+
+      if (error) throw error;
+
       if (currentUser) {
         const studentName = students.find((s) => s.id === paying.student_id)?.name || "Unknown";
         await addAuditLog(
@@ -62,10 +110,15 @@ function TuitionPage() {
         );
       }
       
+      toast.success("Payment recorded successfully!");
       setPayingId(null);
       setAmount("");
+      
+      // Reload lại trang sau 1 giây để Supabase cập nhật dữ liệu mới lên UI
+      setTimeout(() => window.location.reload(), 1000);
     } catch (err: any) {
       console.error(err);
+      toast.error(`Failed to record payment: ${err.message}`);
     } finally {
       setSubmitting(false);
     }
@@ -95,20 +148,26 @@ function TuitionPage() {
             <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search by student or invoice ID…" className="pl-8 h-9" />
           </div>
           <Badge variant="secondary">{filtered.length} invoices</Badge>
+          <div className="ml-auto flex gap-2">
+            <Button variant="outline" size="sm" onClick={exportCSV}>
+              <Download className="mr-2 size-4" />
+              Export CSV
+            </Button>
+          </div>
         </div>
         <div className="rounded-lg border overflow-hidden">
           <Table>
             <TableHeader>
               <TableRow>
                 <TableHead>Invoice</TableHead>
-<TableHead>Student</TableHead>
-<TableHead className="text-right">Amount Due</TableHead>
-<TableHead className="text-right">Paid</TableHead>
-<TableHead className="text-right">Remaining</TableHead>
-<TableHead className="text-center">Due Date</TableHead>
-<TableHead className="text-center">Payment Note</TableHead>
-<TableHead>Status</TableHead>
-<TableHead className="w-32"></TableHead>
+                <TableHead>Student</TableHead>
+                <TableHead className="text-right">Amount Due</TableHead>
+                <TableHead className="text-right">Paid</TableHead>
+                <TableHead className="text-right">Remaining</TableHead>
+                <TableHead className="text-center">Due Date</TableHead>
+                <TableHead className="text-center">Payment Note</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead className="w-32"></TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -120,18 +179,25 @@ function TuitionPage() {
                     <TableCell className="font-medium">{stu?.name || "—"}</TableCell>
                     <TableCell className="text-right tabular-nums">{formatVND(Number(i.amount_due || 0))}</TableCell>
                     <TableCell className="text-right tabular-nums text-success">{formatVND(Number(i.amount_paid || 0))}</TableCell>
-<TableCell className="text-right tabular-nums text-destructive">{formatVND(Number(i.remaining_debt || 0))}</TableCell>
+                    <TableCell className="text-right tabular-nums text-destructive">{formatVND(Number(i.remaining_debt || 0))}</TableCell>
                     <TableCell className="text-center">{i.due_date ? new Date(i.due_date).toLocaleDateString() : "—"}</TableCell>
-                    <TableCell className="text-center">{i.payment_note || "—"}</TableCell>
+                    <TableCell className="text-center text-xs max-w-[200px] truncate">{i.payment_note || "—"}</TableCell>
                     <TableCell>
-                      <Badge variant={i.status === "Paid" ? "default" : i.status === "Unpaid" ? "destructive" : "secondary"}>{i.status}</Badge>
+                      <Badge variant={getInvoiceStatus(i) === "Paid" ? "default" : getInvoiceStatus(i) === "Overdue" ? "destructive" : getInvoiceStatus(i) === "Unpaid" ? "secondary" : "outline"}>
+                        {getInvoiceStatus(i)}
+                      </Badge>
                     </TableCell>
                     <TableCell>
-                      {i.status !== "Paid" && (
-                        <Button size="sm" variant="outline" onClick={() => { setPayingId(i.id); setAmount(String(i.remaining_debt)); }}>
-                          <CreditCard className="size-3" /> Record
+                      <div className="flex items-center gap-1">
+                        <Button size="icon" variant="ghost" onClick={() => setDetailId(i.id)}>
+                          <Eye className="size-4" />
                         </Button>
-                      )}
+                        {getInvoiceStatus(i) !== "Paid" && (
+                          <Button size="sm" variant="outline" onClick={() => { setPayingId(i.id); setAmount(String(i.remaining_debt)); }}>
+                            <CreditCard className="size-3" /> Record
+                          </Button>
+                        )}
+                      </div>
                     </TableCell>
                   </TableRow>
                 );
@@ -179,6 +245,80 @@ function TuitionPage() {
               {submitting && <Loader2 className="size-4 animate-spin mr-1" />} Confirm Payment
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Invoice Detail Dialog */}
+      <Dialog open={!!detailId} onOpenChange={(o) => !o && setDetailId(null)}>
+        <DialogContent className="max-w-3xl print:max-w-none print:w-full print:border-none print:shadow-none">
+          {detailInvoice && (() => {
+            const stu = students.find((s) => s.id === detailInvoice.student_id);
+            const enrol = enrolments.find(e => e.id === detailInvoice.enrolment_id);
+            const cls = classes.find(c => c.id === enrol?.class_id);
+
+            return (
+              <>
+                <DialogHeader className="print:hidden">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <DialogTitle className="flex items-center gap-2"><Receipt className="size-5" /> Invoice Details</DialogTitle>
+                      <DialogDescription>Invoice ID: {detailInvoice.id}</DialogDescription>
+                    </div>
+                    <Button variant="outline" size="sm" onClick={() => window.print()}>
+                      <Printer className="mr-2 size-4" /> Print
+                    </Button>
+                  </div>
+                </DialogHeader>
+
+                <div className="py-4 space-y-6">
+                  {/* Header for print */}
+                  <div className="hidden print:block text-center mb-8 border-b pb-4">
+                    <h1 className="text-2xl font-bold">TUITION INVOICE</h1>
+                    <p className="text-muted-foreground mt-1">Invoice ID: {detailInvoice.id}</p>
+                    <p className="text-muted-foreground">Date: {new Date(detailInvoice.created_at || detailInvoice.issued_at || Date.now()).toLocaleDateString()}</p>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="rounded-lg bg-muted/50 p-4">
+                      <h4 className="font-semibold text-sm mb-3">Student Information</h4>
+                      <div className="space-y-1 text-sm">
+                        <div className="flex justify-between"><span className="text-muted-foreground">Name:</span> <span>{stu?.name}</span></div>
+                        <div className="flex justify-between"><span className="text-muted-foreground">Phone:</span> <span>{stu?.phone || "—"}</span></div>
+                        <div className="flex justify-between"><span className="text-muted-foreground">Parent:</span> <span>{stu?.parent_name || "—"}</span></div>
+                        <div className="flex justify-between"><span className="text-muted-foreground">Class:</span> <span>{cls?.name || "—"}</span></div>
+                      </div>
+                    </div>
+                    <div className="rounded-lg bg-muted/50 p-4">
+                      <h4 className="font-semibold text-sm mb-3">Invoice Summary</h4>
+                      <div className="space-y-1 text-sm">
+                        <div className="flex justify-between"><span className="text-muted-foreground">Status:</span> 
+                          <Badge variant={getInvoiceStatus(detailInvoice) === "Paid" ? "default" : getInvoiceStatus(detailInvoice) === "Overdue" ? "destructive" : "secondary"}>
+                            {getInvoiceStatus(detailInvoice)}
+                          </Badge>
+                        </div>
+                        <div className="flex justify-between"><span className="text-muted-foreground">Due Date:</span> <span>{detailInvoice.due_date ? new Date(detailInvoice.due_date).toLocaleDateString() : "—"}</span></div>
+                        <div className="flex justify-between mt-2 pt-2 border-t"><span className="font-medium">Total Amount:</span> <span className="font-semibold">{formatVND(Number(detailInvoice.amount_due))}</span></div>
+                        <div className="flex justify-between"><span className="text-muted-foreground">Amount Paid:</span> <span className="text-success">{formatVND(Number(detailInvoice.amount_paid))}</span></div>
+                        <div className="flex justify-between font-semibold"><span className="text-destructive">Remaining:</span> <span className="text-destructive">{formatVND(Number(detailInvoice.remaining_debt))}</span></div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* SỬA ĐỔI: Hiển thị Payment Note thay thế lịch sử bảng phụ */}
+                  <div>
+                    <h4 className="font-semibold text-sm mb-3 border-b pb-2">Payment Details Note</h4>
+                    {detailInvoice.payment_note ? (
+                      <div className="p-3 bg-success/5 border border-success/20 rounded-lg text-sm text-success font-medium">
+                        {detailInvoice.payment_note}
+                      </div>
+                    ) : (
+                      <p className="text-sm text-muted-foreground italic">No payment details or notes recorded yet.</p>
+                    )}
+                  </div>
+                </div>
+              </>
+            );
+          })()}
         </DialogContent>
       </Dialog>
     </div>
