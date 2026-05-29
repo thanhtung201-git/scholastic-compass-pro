@@ -205,8 +205,7 @@ function LeadDetailPage() {
         <PageHeader title={lead.full_name} description={lead.source?.name || "Lead"} />
       </div>
 
-      {/* Lead Info Cards */}
-      <div className="grid gap-4 md:grid-cols-3 lg:grid-cols-5">
+      <div className="grid gap-4 md:grid-cols-3 lg:grid-cols-6">
         <Card className="p-4">
           <div className="flex items-start justify-between">
             <div>
@@ -218,6 +217,19 @@ function LeadDetailPage() {
             <User className="size-4 text-muted-foreground" />
           </div>
         </Card>
+
+        {lead.lead_type === 'B2B' && (
+          <Card className="p-4">
+            <div className="flex items-start justify-between">
+              <div>
+                <p className="text-sm text-muted-foreground">Company</p>
+                <p className="font-semibold mt-1 truncate">{lead.company_name || "-"}</p>
+                {lead.job_title && <p className="text-xs text-muted-foreground mt-1">{lead.job_title}</p>}
+              </div>
+              <Badge variant="outline" className="text-[10px]">B2B</Badge>
+            </div>
+          </Card>
+        )}
 
         <Card className="p-4">
           <div className="flex items-start justify-between">

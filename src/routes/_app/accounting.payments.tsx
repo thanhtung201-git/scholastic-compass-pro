@@ -16,38 +16,51 @@ export const Route = createFileRoute("/_app/accounting/payments")({
 const formatVND = (n: number) =>
   new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND", maximumFractionDigits: 0 }).format(n);
 
+// Hàm phụ để parse date an toàn, tránh lỗi hiển thị "Invalid Date"
+const formatDate = (dateString: string | null) => {
+  if (!dateString) return "—";
+  const d = new Date(dateString);
+  return isNaN(d.getTime()) ? "—" : d.toLocaleString("vi-VN");
+};
+
 function PaymentsPage() {
-  const { tuitionPayments, students, loading } = useDatabase();
+  const { tuitionPayments = [], students = [], loading } = useDatabase();
   const [q, setQ] = useState("");
 
+  // Tối ưu hóa bộ lọc filter để tránh crash khi dính giá trị null trong database
   const filtered = tuitionPayments.filter((p) => {
     const s = students.find((st) => st.id === p.student_id);
-    return (
-      s?.name?.toLowerCase().includes(q.toLowerCase()) || 
-      p.invoice_id?.toLowerCase().includes(q.toLowerCase())
-    );
+    const studentName = s?.name?.toLowerCase() || "";
+    const invoiceId = p.invoice_id?.toLowerCase() || "";
+    const searchString = q.toLowerCase();
+
+    return studentName.includes(searchString) || invoiceId.includes(searchString);
   });
 
   const exportCSV = () => {
     const headers = ["Payment ID", "Invoice ID", "Student", "Amount", "Method", "Date"];
     const rows = filtered.map(p => [
       p.id,
-      p.invoice_id,
+      p.invoice_id || "—",
       students.find(s => s.id === p.student_id)?.name || "Unknown",
       p.amount,
-      p.payment_method,
-      new Date(p.payment_date).toLocaleString()
+      p.payment_method || "—",
+      p.payment_date ? new Date(p.payment_date).toISOString() : "—"
     ]);
-    const csvContent = "data:text/csv;charset=utf-8," + [headers.join(","), ...rows.map(e => e.join(","))].join("\n");
-    const encodedUri = encodeURI(csvContent);
+    
+    // Thêm BOM \uFEFF giúp Excel hiển thị đúng font tiếng Việt có dấu không bị lỗi font
+    const csvContent = "\uFEFF" + [headers.join(","), ...rows.map(e => e.join(","))].join("\n");
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
-    link.setAttribute("href", encodedUri);
+    link.setAttribute("href", url);
     link.setAttribute("download", "payments_history.csv");
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
   };
 
+  // Sửa nhẹ điều kiện loading để tránh bị nháy màn hình trống khi đang nạp dữ liệu
   if (loading && tuitionPayments.length === 0) {
     return (
       <div className="flex h-[400px] w-full items-center justify-center">
@@ -103,11 +116,11 @@ function PaymentsPage() {
                   const stu = students.find((s) => s.id === p.student_id);
                   return (
                     <TableRow key={p.id}>
-                      <TableCell>{new Date(p.payment_date).toLocaleString()}</TableCell>
+                      <TableCell>{formatDate(p.payment_date)}</TableCell>
                       <TableCell className="font-medium">{stu?.name || "—"}</TableCell>
-                      <TableCell className="font-mono text-xs">{p.invoice_id}</TableCell>
-                      <TableCell>{p.payment_method}</TableCell>
-                      <TableCell className="text-right font-medium text-success">
+                      <TableCell className="font-mono text-xs">{p.invoice_id || "—"}</TableCell>
+                      <TableCell>{p.payment_method || "—"}</TableCell>
+                      <TableCell className="text-right font-medium text-emerald-600">
                         {formatVND(Number(p.amount || 0))}
                       </TableCell>
                     </TableRow>

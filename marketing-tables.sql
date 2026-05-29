@@ -27,6 +27,9 @@ CREATE TABLE IF NOT EXISTS "marketing_leads" (
   status VARCHAR(50) DEFAULT 'New', -- New, Interested, Trial Scheduled, Registered, Paid, Lost
   assigned_staff_id UUID,
   last_contact_at TIMESTAMP WITH TIME ZONE,
+  lead_type VARCHAR(50) DEFAULT 'B2C', -- B2C or B2B
+  company_name VARCHAR(255),
+  job_title VARCHAR(255),
   notes TEXT,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
@@ -193,12 +196,12 @@ INSERT INTO "marketing_campaigns" (name, channel, description, budget, start_dat
 ON CONFLICT DO NOTHING;
 
 -- Seed Sample Leads
-INSERT INTO "marketing_leads" (full_name, email, phone, source_id, status, notes) VALUES
-('Tran Minh Duc', 'tran.duc@email.com', '0912345678', (SELECT id FROM "marketing_sources" WHERE name = 'Facebook Ads'), 'Contacted', 'Interested in IELTS 6.5+'),
-('Nguyen Thu Ha', 'ha.nguyen@email.com', '0923456789', (SELECT id FROM "marketing_sources" WHERE name = 'Google Ads'), 'Trial Scheduled', 'Trial class scheduled for May 1'),
-('Pham Hoang Long', 'long.pham@email.com', '0934567890', (SELECT id FROM "marketing_sources" WHERE name = 'Website'), 'New', 'First time inquirer'),
-('Dang Thi Hoa', 'hoa.dang@email.com', '0945678901', (SELECT id FROM "marketing_sources" WHERE name = 'Referral'), 'Enrolled', 'Already enrolled in TOEIC class'),
-('Le Van Son', 'son.le@email.com', '0956789012', (SELECT id FROM "marketing_sources" WHERE name = 'TikTok Ads'), 'New', 'Interested in business English')
+INSERT INTO "marketing_leads" (full_name, email, phone, source_id, status, notes, lead_type, company_name, job_title) VALUES
+('Tran Minh Duc', 'tran.duc@email.com', '0912345678', (SELECT id FROM "marketing_sources" WHERE name = 'Facebook Ads'), 'Contacted', 'Interested in IELTS 6.5+', 'B2C', NULL, NULL),
+('Nguyen Thu Ha', 'ha.nguyen@email.com', '0923456789', (SELECT id FROM "marketing_sources" WHERE name = 'Google Ads'), 'Trial Scheduled', 'Trial class scheduled for May 1', 'B2C', NULL, NULL),
+('Pham Hoang Long', 'long.pham@email.com', '0934567890', (SELECT id FROM "marketing_sources" WHERE name = 'Website'), 'New', 'First time inquirer', 'B2B', 'TechCorp', 'HR Manager'),
+('Dang Thi Hoa', 'hoa.dang@email.com', '0945678901', (SELECT id FROM "marketing_sources" WHERE name = 'Referral'), 'Enrolled', 'Already enrolled in TOEIC class', 'B2C', NULL, NULL),
+('Le Van Son', 'son.le@email.com', '0956789012', (SELECT id FROM "marketing_sources" WHERE name = 'TikTok Ads'), 'New', 'Interested in business English', 'B2B', 'EduPlus', 'Director')
 ON CONFLICT DO NOTHING;
 
 -- Seed Marketing Promotions

@@ -80,6 +80,7 @@ function LeadsPage() {
   const [filterStatus, setFilterStatus] = useState('__all__');
   const [filterSource, setFilterSource] = useState('__all__');
   const [filterStaff, setFilterStaff] = useState('__all__');
+  const [filterType, setFilterType] = useState('__all__');
   const [viewMode, setViewMode] = useState<'table' | 'kanban'>('table');
 
   // Add lead form
@@ -93,6 +94,9 @@ function LeadsPage() {
     assigned_staff_id: "",
     status: "New",
     notes: "",
+    lead_type: "B2C",
+    company_name: "",
+    job_title: "",
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -108,6 +112,9 @@ function LeadsPage() {
     assigned_staff_id: "",
     status: "New",
     notes: "",
+    lead_type: "B2C",
+    company_name: "",
+    job_title: "",
   });
   const [isEditSubmitting, setIsEditSubmitting] = useState(false);
 
@@ -119,7 +126,8 @@ function LeadsPage() {
     const matchesStatus = filterStatus === '__all__' || lead.status === filterStatus;
     const matchesSource = filterSource === '__all__' || lead.source_id === filterSource;
     const matchesStaff = filterStaff === '__all__' || lead.assigned_staff_id === filterStaff;
-    return matchesSearch && matchesStatus && matchesSource && matchesStaff;
+    const matchesType = filterType === '__all__' || lead.lead_type === filterType;
+    return matchesSearch && matchesStatus && matchesSource && matchesStaff && matchesType;
   });
 
   const handleAddLead = async (e: React.FormEvent) => {
@@ -140,6 +148,9 @@ function LeadsPage() {
         assigned_staff_id: "",
         status: "New",
         notes: "",
+        lead_type: "B2C",
+        company_name: "",
+        job_title: "",
       });
       setIsAddOpen(false);
     } finally {
@@ -179,6 +190,9 @@ function LeadsPage() {
       assigned_staff_id: lead.assigned_staff_id || "",
       status: lead.status,
       notes: lead.notes || "",
+      lead_type: lead.lead_type || "B2C",
+      company_name: lead.company_name || "",
+      job_title: lead.job_title || "",
     });
     setIsEditOpen(true);
   };
@@ -237,7 +251,7 @@ function LeadsPage() {
                   Add Lead
                 </Button>
               </DialogTrigger>
-              <DialogContent className="max-w-md">
+              <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
                 <DialogHeader>
                   <DialogTitle>Add New Lead</DialogTitle>
                   <DialogDescription>
@@ -256,6 +270,47 @@ function LeadsPage() {
                       }
                     />
                   </div>
+                  <div>
+                    <Label htmlFor="lead_type">Lead Type</Label>
+                    <Select
+                      value={formData.lead_type}
+                      onValueChange={(value) =>
+                        setFormData({ ...formData, lead_type: value })
+                      }
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="B2C">B2C (Individual)</SelectItem>
+                        <SelectItem value="B2B">B2B (Business)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  {formData.lead_type === 'B2B' && (
+                    <>
+                      <div>
+                        <Label htmlFor="company_name">Company Name</Label>
+                        <Input
+                          id="company_name"
+                          value={formData.company_name}
+                          onChange={(e) =>
+                            setFormData({ ...formData, company_name: e.target.value })
+                          }
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="job_title">Job Title</Label>
+                        <Input
+                          id="job_title"
+                          value={formData.job_title}
+                          onChange={(e) =>
+                            setFormData({ ...formData, job_title: e.target.value })
+                          }
+                        />
+                      </div>
+                    </>
+                  )}
                   <div>
                     <Label htmlFor="email">Email</Label>
                     <Input
@@ -374,6 +429,17 @@ function LeadsPage() {
               </SelectContent>
             </Select>
 
+            <Select value={filterType} onValueChange={setFilterType}>
+              <SelectTrigger className="w-40">
+                <SelectValue placeholder="Filter by type" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__all__">All Types</SelectItem>
+                <SelectItem value="B2C">B2C</SelectItem>
+                <SelectItem value="B2B">B2B</SelectItem>
+              </SelectContent>
+            </Select>
+
             <Select value={filterSource} onValueChange={setFilterSource}>
               <SelectTrigger className="w-40">
                 <SelectValue placeholder="Filter by source" />
@@ -421,6 +487,8 @@ function LeadsPage() {
             <TableHeader>
               <TableRow>
                 <TableHead>Full Name</TableHead>
+                <TableHead>Type</TableHead>
+                <TableHead>Company</TableHead>
                 <TableHead>Phone</TableHead>
                 <TableHead>Email</TableHead>
                 <TableHead>Source</TableHead>
@@ -442,6 +510,10 @@ function LeadsPage() {
                 filteredLeads.map((lead) => (
                   <TableRow key={lead.id}>
                     <TableCell className="font-medium">{lead.full_name}</TableCell>
+                    <TableCell>
+                      <Badge variant="outline">{lead.lead_type || 'B2C'}</Badge>
+                    </TableCell>
+                    <TableCell>{lead.company_name || "-"}</TableCell>
                     <TableCell>{lead.phone || "-"}</TableCell>
                     <TableCell>{lead.email || "-"}</TableCell>
                     <TableCell>{lead.source?.name || "-"}</TableCell>
@@ -496,7 +568,7 @@ function LeadsPage() {
 
       {/* Edit Lead Dialog */}
       <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Edit Lead</DialogTitle>
             <DialogDescription>Update lead information</DialogDescription>
@@ -513,6 +585,47 @@ function LeadsPage() {
                 }
               />
             </div>
+            <div>
+              <Label htmlFor="edit-lead_type">Lead Type</Label>
+              <Select
+                value={editFormData.lead_type}
+                onValueChange={(value) =>
+                  setEditFormData({ ...editFormData, lead_type: value })
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="B2C">B2C (Individual)</SelectItem>
+                  <SelectItem value="B2B">B2B (Business)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            {editFormData.lead_type === 'B2B' && (
+              <>
+                <div>
+                  <Label htmlFor="edit-company_name">Company Name</Label>
+                  <Input
+                    id="edit-company_name"
+                    value={editFormData.company_name}
+                    onChange={(e) =>
+                      setEditFormData({ ...editFormData, company_name: e.target.value })
+                    }
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="edit-job_title">Job Title</Label>
+                  <Input
+                    id="edit-job_title"
+                    value={editFormData.job_title}
+                    onChange={(e) =>
+                      setEditFormData({ ...editFormData, job_title: e.target.value })
+                    }
+                  />
+                </div>
+              </>
+            )}
             <div>
               <Label htmlFor="edit-email">Email</Label>
               <Input
