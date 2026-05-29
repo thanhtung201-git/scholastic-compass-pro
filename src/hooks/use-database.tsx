@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { createClient } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
 import * as mock from "@/lib/mock-data";
@@ -8,6 +9,7 @@ import type { Role } from "@/lib/types";
 interface DbContextType {
   branches: any[];
   teachers: any[];
+  employees: any[];
   classrooms: any[];
   courses: any[];
   classes: any[];
@@ -18,6 +20,7 @@ interface DbContextType {
   submissions: any[];
   tuitionInvoices: any[];
   attendanceLogs: any[];
+  attendanceTracking: any[];
   auditLogs: any[];
   users: any[];
   loading: boolean;
@@ -41,6 +44,7 @@ interface DbContextType {
   deleteSchedule: (id: string) => Promise<void>;
   deleteStudent: (id: string) => Promise<void>;
   deleteUser: (id: string) => Promise<void>;
+  inviteUser: (data: any) => Promise<void>;
 }
 
 const DbContext = createContext<DbContextType | null>(null);
@@ -66,6 +70,15 @@ export function DatabaseProvider({ children }: { children: ReactNode }) {
       if (error) throw error;
       return data;
     }
+  });
+  // Employees query
+  const { data: employees = [], isLoading: loadEmployees } = useQuery({
+    queryKey: ["employees"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("employees").select("*");
+      if (error) throw error;
+      return data;
+    },
   });
 
   const { data: classrooms = [], isLoading: loadClassrooms } = useQuery({
@@ -158,6 +171,15 @@ export function DatabaseProvider({ children }: { children: ReactNode }) {
     }
   });
 
+  const { data: attendanceTracking = [], isLoading: loadAttendanceTracking } = useQuery({
+    queryKey: ["attendance_tracking"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("attendance_tracking").select("*");
+      if (error) throw error;
+      return data;
+    }
+  });
+
   const { data: auditLogs = [], isLoading: loadAudit } = useQuery({
     queryKey: ["audit_logs"],
     queryFn: async () => {
@@ -183,7 +205,7 @@ export function DatabaseProvider({ children }: { children: ReactNode }) {
 
   const loading =
     loadBranches ||
-    loadTeachers ||
+    loadTeachers || loadEmployees ||
     loadClassrooms ||
     loadCourses ||
     loadClasses ||
@@ -194,6 +216,7 @@ export function DatabaseProvider({ children }: { children: ReactNode }) {
     loadSubmissions ||
     loadInvoices ||
     loadAttendance ||
+    loadAttendanceTracking ||
     loadAudit ||
     loadUsers ||
     seeding;
@@ -262,26 +285,7 @@ export function DatabaseProvider({ children }: { children: ReactNode }) {
           }));
           await supabase.from("courses").insert(mappedCourses);
 
-          // 3. Seed teachers
-          const mappedTeachers = mock.teachers.map(t => ({
-            id: mapId(t.id, "teacher"),
-            name: t.name,
-            subject: t.subject,
-            hourly_rate: t.hourly_rate,
-            branch_id: mapId(t.branch_id, "branch")
-          }));
-          await supabase.from("teachers").insert(mappedTeachers);
-
-          // 4. Seed classrooms
-          const mappedClassrooms = mock.classrooms.map(cr => ({
-            id: mapId(cr.id, "classroom"),
-            name: cr.name,
-            capacity: cr.capacity,
-            branch_id: mapId(cr.branch_id, "branch")
-          }));
-          await supabase.from("classrooms").insert(mappedClassrooms);
-
-          // 5. Seed classes
+                    // 5. Seed classes
           const mappedClasses = mock.classes.map(cls => ({
             id: mapId(cls.id, "class"),
             course_id: mapId(cls.course_id, "course"),
@@ -784,6 +788,71 @@ export function DatabaseProvider({ children }: { children: ReactNode }) {
     }
   });
 
+  const inviteUserMutation = useMutation({
+    mutationFn: async (data: any) => {
+      // Create a temporary client so we don't overwrite the current admin's session
+      const tempSupabase = createClient(
+        import.meta.env.VITE_SUPABASE_URL || "",
+        import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || "",
+        { auth: { persistSession: false, autoRefreshToken: false } }
+      );
+
+      // 1. Create Supabase Auth User
+      const { data: authData, error: authErr } = await tempSupabase.auth.signUp({
+        email: data.email,
+        password: "password123",
+        options: {
+          data: {
+            name: data.full_name,
+            role: data.role,
+          },
+        },
+      });
+
+      if (authErr) throw authErr;
+
+      const newUserId = authData.user?.id;
+      if (!newUserId) {
+        // If email confirmations are enabled and the user already exists, signUp doesn't return user.
+        // We'll fallback to a random UUID just in case it's a mock environment without real Auth setup.
+        throw new Error("Failed to retrieve user ID from Auth. Ensure the email is not already registered.");
+      }
+
+      // 2. Insert into users table
+      const { error: userErr } = await supabase.from("users").insert([{
+        id: newUserId,
+        name: data.full_name,
+        email: data.email,
+        role: data.role,
+        branch_id: data.branch_id,
+        status: "Active"
+      }]);
+      if (userErr) throw userErr;
+
+      // 3. Insert into employee table
+      const { error: empErr } = await supabase.from("employee").insert([{
+        user_id: newUserId,
+        full_name: data.full_name,
+        role: data.role,
+        department: data.department,
+        phone_number: data.phone_number,
+        contract_type: data.contract_type,
+        base_salary: data.base_salary,
+        start_date: data.start_date,
+        status: "Active"
+      }]);
+      if (empErr) throw empErr;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["users"] });
+      queryClient.invalidateQueries({ queryKey: ["employees"] });
+      toast.success("User invited and employee created successfully!");
+    },
+    onError: (err) => {
+      toast.error(`Failed to invite user: ${err.message}`);
+    }
+  });
+
   const toggleUserStatus = async (id: string, currentStatus: string) => {
     const status = currentStatus === "Active" ? "Blocked" : "Active";
     await toggleUserStatusMutation.mutateAsync({ id, status });
@@ -866,11 +935,15 @@ export function DatabaseProvider({ children }: { children: ReactNode }) {
     await deleteUserMutation.mutateAsync(id);
   };
 
+  const inviteUser = async (data: any) => {
+    await inviteUserMutation.mutateAsync(data);
+  };
+
   return (
     <DbContext.Provider
       value={{
         branches,
-        teachers,
+        teachers, employees,
         classrooms,
         courses,
         classes,
@@ -881,6 +954,7 @@ export function DatabaseProvider({ children }: { children: ReactNode }) {
         submissions,
         tuitionInvoices,
         attendanceLogs,
+        attendanceTracking,
         auditLogs,
         users,
         loading,
@@ -901,7 +975,8 @@ export function DatabaseProvider({ children }: { children: ReactNode }) {
         updateSchedule,
         deleteSchedule,
         deleteStudent,
-        deleteUser
+        deleteUser,
+        inviteUser
       }}
     >
       {children}

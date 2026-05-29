@@ -373,7 +373,7 @@ function StudentsPage() {
                 const statusRaw = s.status as string || "—";
                 const statusLabel = statusRaw === "—" ? "—" : statusRaw.charAt(0).toUpperCase() + statusRaw.slice(1);
                 const statusVariant: "default" | "destructive" = statusLabel === "Bỏ học" ? "destructive" : "default";
-                const statusInfo = { label: statusLabel, variant: statusVariant as const };
+                const statusInfo = { label: statusLabel, variant: statusVariant };
                 
                 return (
                   <TableRow key={s.id}>

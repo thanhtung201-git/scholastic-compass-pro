@@ -13,6 +13,12 @@ export const mockUsers: MockUser[] = [
   { id: "u5", name: "Mr. David Johnson", email: "teacher@mcnaedu.vn", role: "Teacher", branch_id: "b1", status: "Active" },
   { id: "u6", name: "Hoang Bao An (Parent)", email: "student@mcnaedu.vn", role: "Student", branch_id: "b1", status: "Active" },
   { id: "u7", name: "Vu Thi Mai", email: "reception@mcnaedu.vn", role: "Receptionist", branch_id: "b2", status: "Active" },
+  { id: "u8", name: "Le HR Manager", email: "hrmanager@mcnaedu.vn", role: "HR Manager", branch_id: "b1", status: "Active" },
+  { id: "u9", name: "Nguyen HR Staff", email: "hrstaff@mcnaedu.vn", role: "HR Staff", branch_id: "b1", status: "Active" },
+  { id: "u10", name: "Tran Marketing Manager", email: "marketingmanager@mcnaedu.vn", role: "Marketing Manager", branch_id: "b1", status: "Active" },
+  { id: "u11", name: "Vo Marketing Staff", email: "marketingstaff@mcnaedu.vn", role: "Marketing Staff", branch_id: "b1", status: "Active" },
+  { id: "u12", name: "Pham Academic Manager", email: "academicmanager@mcnaedu.vn", role: "Academic Manager", branch_id: "b1", status: "Active" },
+  { id: "u13", name: "Vu Finance Manager", email: "financemanager@mcnaedu.vn", role: "Finance Manager", branch_id: "b1", status: "Active" },
 ];
 
 export const userByRole = (role: Role) => mockUsers.find((u) => u.role === role)!;
