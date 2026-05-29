@@ -52,6 +52,7 @@ const navSections: NavSection[] = [
       { title: "Payments", url: "/accounting/payments", icon: CreditCard, roles: ["Accountant","Admin","Director"] },
       { title: "Expenses", url: "/accounting/expenses", icon: Wallet, roles: ["Accountant","Admin","Director"] },
       { title: "Payroll", url: "/payroll", icon: Banknote, roles: ["Accountant","Academic Staff","Director","Teacher","Admin"] },
+      { title: "Salary", url: "/salary", icon: Banknote, roles: ["Accountant","Admin","Director","Finance Manager"] },
       { title: "Rooms & Guests", url: "/rooms", icon: DoorOpen, roles: ["Admin", "Director", "Finance Manager", "Accountant"] },
     ]
   },

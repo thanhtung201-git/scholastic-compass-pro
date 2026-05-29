@@ -18,6 +18,7 @@ import { Route as AppTeachersRouteImport } from './routes/_app/teachers'
 import { Route as AppTaskAssignmentRouteImport } from './routes/_app/task-assignment'
 import { Route as AppStudentsRouteImport } from './routes/_app/students'
 import { Route as AppScheduleRouteImport } from './routes/_app/schedule'
+import { Route as AppSalaryRouteImport } from './routes/_app/salary'
 import { Route as AppRoomsRouteImport } from './routes/_app/rooms'
 import { Route as AppPayrollRouteImport } from './routes/_app/payroll'
 import { Route as AppMarketingRouteImport } from './routes/_app/marketing'
@@ -81,6 +82,11 @@ const AppStudentsRoute = AppStudentsRouteImport.update({
 const AppScheduleRoute = AppScheduleRouteImport.update({
   id: '/schedule',
   path: '/schedule',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppSalaryRoute = AppSalaryRouteImport.update({
+  id: '/salary',
+  path: '/salary',
   getParentRoute: () => AppRoute,
 } as any)
 const AppRoomsRoute = AppRoomsRouteImport.update({
@@ -198,6 +204,7 @@ export interface FileRoutesByFullPath {
   '/marketing': typeof AppMarketingRouteWithChildren
   '/payroll': typeof AppPayrollRoute
   '/rooms': typeof AppRoomsRoute
+  '/salary': typeof AppSalaryRoute
   '/schedule': typeof AppScheduleRoute
   '/students': typeof AppStudentsRoute
   '/task-assignment': typeof AppTaskAssignmentRoute
@@ -228,6 +235,7 @@ export interface FileRoutesByTo {
   '/marketing': typeof AppMarketingRouteWithChildren
   '/payroll': typeof AppPayrollRoute
   '/rooms': typeof AppRoomsRoute
+  '/salary': typeof AppSalaryRoute
   '/schedule': typeof AppScheduleRoute
   '/students': typeof AppStudentsRoute
   '/task-assignment': typeof AppTaskAssignmentRoute
@@ -260,6 +268,7 @@ export interface FileRoutesById {
   '/_app/marketing': typeof AppMarketingRouteWithChildren
   '/_app/payroll': typeof AppPayrollRoute
   '/_app/rooms': typeof AppRoomsRoute
+  '/_app/salary': typeof AppSalaryRoute
   '/_app/schedule': typeof AppScheduleRoute
   '/_app/students': typeof AppStudentsRoute
   '/_app/task-assignment': typeof AppTaskAssignmentRoute
@@ -292,6 +301,7 @@ export interface FileRouteTypes {
     | '/marketing'
     | '/payroll'
     | '/rooms'
+    | '/salary'
     | '/schedule'
     | '/students'
     | '/task-assignment'
@@ -322,6 +332,7 @@ export interface FileRouteTypes {
     | '/marketing'
     | '/payroll'
     | '/rooms'
+    | '/salary'
     | '/schedule'
     | '/students'
     | '/task-assignment'
@@ -353,6 +364,7 @@ export interface FileRouteTypes {
     | '/_app/marketing'
     | '/_app/payroll'
     | '/_app/rooms'
+    | '/_app/salary'
     | '/_app/schedule'
     | '/_app/students'
     | '/_app/task-assignment'
@@ -439,6 +451,13 @@ declare module '@tanstack/react-router' {
       path: '/schedule'
       fullPath: '/schedule'
       preLoaderRoute: typeof AppScheduleRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/salary': {
+      id: '/_app/salary'
+      path: '/salary'
+      fullPath: '/salary'
+      preLoaderRoute: typeof AppSalaryRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/rooms': {
@@ -629,6 +648,7 @@ interface AppRouteChildren {
   AppMarketingRoute: typeof AppMarketingRouteWithChildren
   AppPayrollRoute: typeof AppPayrollRoute
   AppRoomsRoute: typeof AppRoomsRoute
+  AppSalaryRoute: typeof AppSalaryRoute
   AppScheduleRoute: typeof AppScheduleRoute
   AppStudentsRoute: typeof AppStudentsRoute
   AppTaskAssignmentRoute: typeof AppTaskAssignmentRoute
@@ -651,6 +671,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppMarketingRoute: AppMarketingRouteWithChildren,
   AppPayrollRoute: AppPayrollRoute,
   AppRoomsRoute: AppRoomsRoute,
+  AppSalaryRoute: AppSalaryRoute,
   AppScheduleRoute: AppScheduleRoute,
   AppStudentsRoute: AppStudentsRoute,
   AppTaskAssignmentRoute: AppTaskAssignmentRoute,
