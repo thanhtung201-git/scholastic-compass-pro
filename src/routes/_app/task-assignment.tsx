@@ -14,6 +14,8 @@ import { CalendarIcon, Plus, AlertCircle, Clock, CheckCircle2, Circle } from "lu
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
+type TaskStatus = "Todo" | "In Progress" | "Review" | "Done";
+
 type Department = { id: string; department_name: string };
 type UserOption  = { id: string; name: string };
 type Task = {
@@ -24,7 +26,7 @@ type Task = {
   assign_to: string;
   assign_by: string;
   priority: "Low" | "Medium" | "High";
-  status: "Todo" | "In Progress" | "Done";
+  status: TaskStatus;
   due_date: string;
   created_at: string;
   assignee_name?: string;
@@ -122,6 +124,7 @@ function StatusBadge({ status }: { status: string }) {
   const map: Record<string, { cls: string; icon: React.ReactNode }> = {
     "Todo":       { cls: "bg-gray-100 text-gray-600 border-gray-200",   icon: <Circle className="size-3" /> },
     "In Progress":{ cls: "bg-blue-50 text-blue-700 border-blue-200",    icon: <Clock className="size-3" /> },
+    "Review":     { cls: "bg-purple-50 text-purple-700 border-purple-200", icon: <AlertCircle className="size-3" /> },
     "Done":       { cls: "bg-green-50 text-green-700 border-green-200", icon: <CheckCircle2 className="size-3" /> },
   };
   const s = map[status] ?? map["Todo"];
@@ -479,7 +482,7 @@ function TaskAssignmentPage() {
       {/* ── Filters ── */}
       <div className="flex gap-2 flex-wrap">
         <div className="flex rounded-md border overflow-hidden text-sm">
-          {["All", "Todo", "In Progress", "Done"].map((s) => (
+          {["All", "Todo", "In Progress", "Review", "Done"].map((s) => (
             <button
               key={s}
               onClick={() => setFilterStatus(s)}
@@ -577,6 +580,7 @@ function TaskAssignmentPage() {
                           <SelectContent>
                             <SelectItem value="Todo">Todo</SelectItem>
                             <SelectItem value="In Progress">In Progress</SelectItem>
+                            <SelectItem value="Review">Review</SelectItem>
                             <SelectItem value="Done">Done</SelectItem>
                           </SelectContent>
                         </Select>
