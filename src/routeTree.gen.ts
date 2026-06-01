@@ -23,6 +23,7 @@ import { Route as AppSprintPlanningRouteImport } from './routes/_app/sprint-plan
 import { Route as AppScheduleRouteImport } from './routes/_app/schedule'
 import { Route as AppSalaryRouteImport } from './routes/_app/salary'
 import { Route as AppRoomsRouteImport } from './routes/_app/rooms'
+import { Route as AppProjectsRouteImport } from './routes/_app/projects'
 import { Route as AppPayrollRouteImport } from './routes/_app/payroll'
 import { Route as AppMarketingRouteImport } from './routes/_app/marketing'
 import { Route as AppLeaveApproveRouteImport } from './routes/_app/leave-approve'
@@ -36,6 +37,7 @@ import { Route as AppClassesRouteImport } from './routes/_app/classes'
 import { Route as AppAuditRouteImport } from './routes/_app/audit'
 import { Route as AppAttendanceTrackingRouteImport } from './routes/_app/attendance-tracking'
 import { Route as AppAttendanceRouteImport } from './routes/_app/attendance'
+import { Route as AppProjectsProjectIdRouteImport } from './routes/_app/projects.$projectId'
 import { Route as AppMarketingSourcesRouteImport } from './routes/_app/marketing.sources'
 import { Route as AppMarketingReportsRouteImport } from './routes/_app/marketing.reports'
 import { Route as AppMarketingPromotionsRouteImport } from './routes/_app/marketing.promotions'
@@ -115,6 +117,11 @@ const AppRoomsRoute = AppRoomsRouteImport.update({
   path: '/rooms',
   getParentRoute: () => AppRoute,
 } as any)
+const AppProjectsRoute = AppProjectsRouteImport.update({
+  id: '/projects',
+  path: '/projects',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppPayrollRoute = AppPayrollRouteImport.update({
   id: '/payroll',
   path: '/payroll',
@@ -180,6 +187,11 @@ const AppAttendanceRoute = AppAttendanceRouteImport.update({
   path: '/attendance',
   getParentRoute: () => AppRoute,
 } as any)
+const AppProjectsProjectIdRoute = AppProjectsProjectIdRouteImport.update({
+  id: '/$projectId',
+  path: '/$projectId',
+  getParentRoute: () => AppProjectsRoute,
+} as any)
 const AppMarketingSourcesRoute = AppMarketingSourcesRouteImport.update({
   id: '/sources',
   path: '/sources',
@@ -242,6 +254,7 @@ export interface FileRoutesByFullPath {
   '/leave-approve': typeof AppLeaveApproveRoute
   '/marketing': typeof AppMarketingRouteWithChildren
   '/payroll': typeof AppPayrollRoute
+  '/projects': typeof AppProjectsRouteWithChildren
   '/rooms': typeof AppRoomsRoute
   '/salary': typeof AppSalaryRoute
   '/schedule': typeof AppScheduleRoute
@@ -261,6 +274,7 @@ export interface FileRoutesByFullPath {
   '/marketing/promotions': typeof AppMarketingPromotionsRoute
   '/marketing/reports': typeof AppMarketingReportsRoute
   '/marketing/sources': typeof AppMarketingSourcesRoute
+  '/projects/$projectId': typeof AppProjectsProjectIdRoute
   '/marketing/leads/$id': typeof AppMarketingLeadsIdRoute
 }
 export interface FileRoutesByTo {
@@ -279,6 +293,7 @@ export interface FileRoutesByTo {
   '/leave-approve': typeof AppLeaveApproveRoute
   '/marketing': typeof AppMarketingRouteWithChildren
   '/payroll': typeof AppPayrollRoute
+  '/projects': typeof AppProjectsRouteWithChildren
   '/rooms': typeof AppRoomsRoute
   '/salary': typeof AppSalaryRoute
   '/schedule': typeof AppScheduleRoute
@@ -298,6 +313,7 @@ export interface FileRoutesByTo {
   '/marketing/promotions': typeof AppMarketingPromotionsRoute
   '/marketing/reports': typeof AppMarketingReportsRoute
   '/marketing/sources': typeof AppMarketingSourcesRoute
+  '/projects/$projectId': typeof AppProjectsProjectIdRoute
   '/marketing/leads/$id': typeof AppMarketingLeadsIdRoute
 }
 export interface FileRoutesById {
@@ -318,6 +334,7 @@ export interface FileRoutesById {
   '/_app/leave-approve': typeof AppLeaveApproveRoute
   '/_app/marketing': typeof AppMarketingRouteWithChildren
   '/_app/payroll': typeof AppPayrollRoute
+  '/_app/projects': typeof AppProjectsRouteWithChildren
   '/_app/rooms': typeof AppRoomsRoute
   '/_app/salary': typeof AppSalaryRoute
   '/_app/schedule': typeof AppScheduleRoute
@@ -337,6 +354,7 @@ export interface FileRoutesById {
   '/_app/marketing/promotions': typeof AppMarketingPromotionsRoute
   '/_app/marketing/reports': typeof AppMarketingReportsRoute
   '/_app/marketing/sources': typeof AppMarketingSourcesRoute
+  '/_app/projects/$projectId': typeof AppProjectsProjectIdRoute
   '/_app/marketing/leads/$id': typeof AppMarketingLeadsIdRoute
 }
 export interface FileRouteTypes {
@@ -357,6 +375,7 @@ export interface FileRouteTypes {
     | '/leave-approve'
     | '/marketing'
     | '/payroll'
+    | '/projects'
     | '/rooms'
     | '/salary'
     | '/schedule'
@@ -376,6 +395,7 @@ export interface FileRouteTypes {
     | '/marketing/promotions'
     | '/marketing/reports'
     | '/marketing/sources'
+    | '/projects/$projectId'
     | '/marketing/leads/$id'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -394,6 +414,7 @@ export interface FileRouteTypes {
     | '/leave-approve'
     | '/marketing'
     | '/payroll'
+    | '/projects'
     | '/rooms'
     | '/salary'
     | '/schedule'
@@ -413,6 +434,7 @@ export interface FileRouteTypes {
     | '/marketing/promotions'
     | '/marketing/reports'
     | '/marketing/sources'
+    | '/projects/$projectId'
     | '/marketing/leads/$id'
   id:
     | '__root__'
@@ -432,6 +454,7 @@ export interface FileRouteTypes {
     | '/_app/leave-approve'
     | '/_app/marketing'
     | '/_app/payroll'
+    | '/_app/projects'
     | '/_app/rooms'
     | '/_app/salary'
     | '/_app/schedule'
@@ -451,6 +474,7 @@ export interface FileRouteTypes {
     | '/_app/marketing/promotions'
     | '/_app/marketing/reports'
     | '/_app/marketing/sources'
+    | '/_app/projects/$projectId'
     | '/_app/marketing/leads/$id'
   fileRoutesById: FileRoutesById
 }
@@ -560,6 +584,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppRoomsRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/projects': {
+      id: '/_app/projects'
+      path: '/projects'
+      fullPath: '/projects'
+      preLoaderRoute: typeof AppProjectsRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/payroll': {
       id: '/_app/payroll'
       path: '/payroll'
@@ -650,6 +681,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/attendance'
       preLoaderRoute: typeof AppAttendanceRouteImport
       parentRoute: typeof AppRoute
+    }
+    '/_app/projects/$projectId': {
+      id: '/_app/projects/$projectId'
+      path: '/$projectId'
+      fullPath: '/projects/$projectId'
+      preLoaderRoute: typeof AppProjectsProjectIdRouteImport
+      parentRoute: typeof AppProjectsRoute
     }
     '/_app/marketing/sources': {
       id: '/_app/marketing/sources'
@@ -750,6 +788,18 @@ const AppMarketingRouteWithChildren = AppMarketingRoute._addFileChildren(
   AppMarketingRouteChildren,
 )
 
+interface AppProjectsRouteChildren {
+  AppProjectsProjectIdRoute: typeof AppProjectsProjectIdRoute
+}
+
+const AppProjectsRouteChildren: AppProjectsRouteChildren = {
+  AppProjectsProjectIdRoute: AppProjectsProjectIdRoute,
+}
+
+const AppProjectsRouteWithChildren = AppProjectsRoute._addFileChildren(
+  AppProjectsRouteChildren,
+)
+
 interface AppRouteChildren {
   AppAttendanceRoute: typeof AppAttendanceRoute
   AppAttendanceTrackingRoute: typeof AppAttendanceTrackingRoute
@@ -764,6 +814,7 @@ interface AppRouteChildren {
   AppLeaveApproveRoute: typeof AppLeaveApproveRoute
   AppMarketingRoute: typeof AppMarketingRouteWithChildren
   AppPayrollRoute: typeof AppPayrollRoute
+  AppProjectsRoute: typeof AppProjectsRouteWithChildren
   AppRoomsRoute: typeof AppRoomsRoute
   AppSalaryRoute: typeof AppSalaryRoute
   AppScheduleRoute: typeof AppScheduleRoute
@@ -793,6 +844,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppLeaveApproveRoute: AppLeaveApproveRoute,
   AppMarketingRoute: AppMarketingRouteWithChildren,
   AppPayrollRoute: AppPayrollRoute,
+  AppProjectsRoute: AppProjectsRouteWithChildren,
   AppRoomsRoute: AppRoomsRoute,
   AppSalaryRoute: AppSalaryRoute,
   AppScheduleRoute: AppScheduleRoute,
