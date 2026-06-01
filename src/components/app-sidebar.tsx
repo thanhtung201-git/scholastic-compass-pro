@@ -2,7 +2,8 @@ import { Link, useRouterState } from "@tanstack/react-router";
 import { useState } from "react";
 import {
   LayoutDashboard, Users, BookOpen, Calendar, ClipboardList, GraduationCap,
-  Receipt, ClipboardCheck, Banknote, Shield, DoorOpen, FileText, CheckSquare, Target, ChevronDown, Tag, CreditCard, Wallet, type LucideIcon,
+  Receipt, ClipboardCheck, Banknote, Shield, DoorOpen, FileText, CheckSquare, Target, ChevronDown, Tag, CreditCard, Wallet,
+  Kanban, ChartGantt, CalendarClock, UsersRound, MessagesSquare, Timer, type LucideIcon,
 } from "lucide-react";
 import {
   Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGroupLabel,
@@ -87,6 +88,12 @@ const navSections: NavSection[] = [
     label: "Project Management",
     items: [
       { title: "Task Assignment", url: "/task-assignment", icon: CheckSquare, roles: ["Admin", "Director", "HR Manager", "HR Staff", "Academic Manager", "Academic Staff", "Finance Manager", "Accountant", "Marketing Manager", "Marketing Staff"] },
+      { title: "Kanban Board", url: "/kanban-board", icon: Kanban, roles: ["Admin", "Director", "HR Manager", "HR Staff", "Academic Manager", "Academic Staff", "Finance Manager", "Accountant", "Marketing Manager", "Marketing Staff"] },
+      { title: "Gantt Chart", url: "/gantt-chart", icon: ChartGantt, roles: ["Admin", "Director", "HR Manager", "HR Staff", "Academic Manager", "Academic Staff", "Finance Manager", "Accountant", "Marketing Manager", "Marketing Staff"] },
+      { title: "Sprint Planning", url: "/sprint-planning", icon: CalendarClock, roles: ["Admin", "Director", "HR Manager", "HR Staff", "Academic Manager", "Academic Staff", "Finance Manager", "Accountant", "Marketing Manager", "Marketing Staff"] },
+      { title: "Workload View", url: "/workload-view", icon: UsersRound, roles: ["Admin", "Director", "HR Manager", "HR Staff", "Academic Manager", "Academic Staff", "Finance Manager", "Accountant", "Marketing Manager", "Marketing Staff"] },
+      { title: "Comments & Threads", url: "/comments-threads", icon: MessagesSquare, roles: ["Admin", "Director", "HR Manager", "HR Staff", "Academic Manager", "Academic Staff", "Finance Manager", "Accountant", "Marketing Manager", "Marketing Staff"] },
+      { title: "Time Tracking", url: "/time-tracking", icon: Timer, roles: ["Admin", "Director", "HR Manager", "HR Staff", "Academic Manager", "Academic Staff", "Finance Manager", "Accountant", "Marketing Manager", "Marketing Staff"] },
     ]
   },
   {
@@ -117,7 +124,7 @@ export function AppSidebar({ role }: { role: Role }) {
           </div>
           {!collapsed && (
             <div className="min-w-0">
-              <div className="font-semibold text-sm truncate">MCNAEdu CRM</div>
+              <div className="font-semibold text-sm truncate">MCNAEdu ERP</div>
               <div className="text-[10px] text-muted-foreground truncate">Academic ERP</div>
             </div>
           )}

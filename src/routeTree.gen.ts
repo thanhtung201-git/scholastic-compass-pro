@@ -12,20 +12,26 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AppRouteImport } from './routes/_app'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AppWorkloadViewRouteImport } from './routes/_app/workload-view'
 import { Route as AppUsersRouteImport } from './routes/_app/users'
 import { Route as AppTuitionRouteImport } from './routes/_app/tuition'
+import { Route as AppTimeTrackingRouteImport } from './routes/_app/time-tracking'
 import { Route as AppTeachersRouteImport } from './routes/_app/teachers'
 import { Route as AppTaskAssignmentRouteImport } from './routes/_app/task-assignment'
 import { Route as AppStudentsRouteImport } from './routes/_app/students'
+import { Route as AppSprintPlanningRouteImport } from './routes/_app/sprint-planning'
 import { Route as AppScheduleRouteImport } from './routes/_app/schedule'
 import { Route as AppSalaryRouteImport } from './routes/_app/salary'
 import { Route as AppRoomsRouteImport } from './routes/_app/rooms'
 import { Route as AppPayrollRouteImport } from './routes/_app/payroll'
 import { Route as AppMarketingRouteImport } from './routes/_app/marketing'
 import { Route as AppLeaveApproveRouteImport } from './routes/_app/leave-approve'
+import { Route as AppKanbanBoardRouteImport } from './routes/_app/kanban-board'
 import { Route as AppHomeworkRouteImport } from './routes/_app/homework'
+import { Route as AppGanttChartRouteImport } from './routes/_app/gantt-chart'
 import { Route as AppEmployeesRouteImport } from './routes/_app/employees'
 import { Route as AppDashboardRouteImport } from './routes/_app/dashboard'
+import { Route as AppCommentsThreadsRouteImport } from './routes/_app/comments-threads'
 import { Route as AppClassesRouteImport } from './routes/_app/classes'
 import { Route as AppAuditRouteImport } from './routes/_app/audit'
 import { Route as AppAttendanceTrackingRouteImport } from './routes/_app/attendance-tracking'
@@ -54,6 +60,11 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AppWorkloadViewRoute = AppWorkloadViewRouteImport.update({
+  id: '/workload-view',
+  path: '/workload-view',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppUsersRoute = AppUsersRouteImport.update({
   id: '/users',
   path: '/users',
@@ -62,6 +73,11 @@ const AppUsersRoute = AppUsersRouteImport.update({
 const AppTuitionRoute = AppTuitionRouteImport.update({
   id: '/tuition',
   path: '/tuition',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppTimeTrackingRoute = AppTimeTrackingRouteImport.update({
+  id: '/time-tracking',
+  path: '/time-tracking',
   getParentRoute: () => AppRoute,
 } as any)
 const AppTeachersRoute = AppTeachersRouteImport.update({
@@ -77,6 +93,11 @@ const AppTaskAssignmentRoute = AppTaskAssignmentRouteImport.update({
 const AppStudentsRoute = AppStudentsRouteImport.update({
   id: '/students',
   path: '/students',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppSprintPlanningRoute = AppSprintPlanningRouteImport.update({
+  id: '/sprint-planning',
+  path: '/sprint-planning',
   getParentRoute: () => AppRoute,
 } as any)
 const AppScheduleRoute = AppScheduleRouteImport.update({
@@ -109,9 +130,19 @@ const AppLeaveApproveRoute = AppLeaveApproveRouteImport.update({
   path: '/leave-approve',
   getParentRoute: () => AppRoute,
 } as any)
+const AppKanbanBoardRoute = AppKanbanBoardRouteImport.update({
+  id: '/kanban-board',
+  path: '/kanban-board',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppHomeworkRoute = AppHomeworkRouteImport.update({
   id: '/homework',
   path: '/homework',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppGanttChartRoute = AppGanttChartRouteImport.update({
+  id: '/gantt-chart',
+  path: '/gantt-chart',
   getParentRoute: () => AppRoute,
 } as any)
 const AppEmployeesRoute = AppEmployeesRouteImport.update({
@@ -122,6 +153,11 @@ const AppEmployeesRoute = AppEmployeesRouteImport.update({
 const AppDashboardRoute = AppDashboardRouteImport.update({
   id: '/dashboard',
   path: '/dashboard',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppCommentsThreadsRoute = AppCommentsThreadsRouteImport.update({
+  id: '/comments-threads',
+  path: '/comments-threads',
   getParentRoute: () => AppRoute,
 } as any)
 const AppClassesRoute = AppClassesRouteImport.update({
@@ -197,20 +233,26 @@ export interface FileRoutesByFullPath {
   '/attendance-tracking': typeof AppAttendanceTrackingRoute
   '/audit': typeof AppAuditRoute
   '/classes': typeof AppClassesRoute
+  '/comments-threads': typeof AppCommentsThreadsRoute
   '/dashboard': typeof AppDashboardRoute
   '/employees': typeof AppEmployeesRoute
+  '/gantt-chart': typeof AppGanttChartRoute
   '/homework': typeof AppHomeworkRoute
+  '/kanban-board': typeof AppKanbanBoardRoute
   '/leave-approve': typeof AppLeaveApproveRoute
   '/marketing': typeof AppMarketingRouteWithChildren
   '/payroll': typeof AppPayrollRoute
   '/rooms': typeof AppRoomsRoute
   '/salary': typeof AppSalaryRoute
   '/schedule': typeof AppScheduleRoute
+  '/sprint-planning': typeof AppSprintPlanningRoute
   '/students': typeof AppStudentsRoute
   '/task-assignment': typeof AppTaskAssignmentRoute
   '/teachers': typeof AppTeachersRoute
+  '/time-tracking': typeof AppTimeTrackingRoute
   '/tuition': typeof AppTuitionRoute
   '/users': typeof AppUsersRoute
+  '/workload-view': typeof AppWorkloadViewRoute
   '/accounting/expenses': typeof AppAccountingExpensesRoute
   '/accounting/payments': typeof AppAccountingPaymentsRoute
   '/marketing/campaigns': typeof AppMarketingCampaignsRoute
@@ -228,20 +270,26 @@ export interface FileRoutesByTo {
   '/attendance-tracking': typeof AppAttendanceTrackingRoute
   '/audit': typeof AppAuditRoute
   '/classes': typeof AppClassesRoute
+  '/comments-threads': typeof AppCommentsThreadsRoute
   '/dashboard': typeof AppDashboardRoute
   '/employees': typeof AppEmployeesRoute
+  '/gantt-chart': typeof AppGanttChartRoute
   '/homework': typeof AppHomeworkRoute
+  '/kanban-board': typeof AppKanbanBoardRoute
   '/leave-approve': typeof AppLeaveApproveRoute
   '/marketing': typeof AppMarketingRouteWithChildren
   '/payroll': typeof AppPayrollRoute
   '/rooms': typeof AppRoomsRoute
   '/salary': typeof AppSalaryRoute
   '/schedule': typeof AppScheduleRoute
+  '/sprint-planning': typeof AppSprintPlanningRoute
   '/students': typeof AppStudentsRoute
   '/task-assignment': typeof AppTaskAssignmentRoute
   '/teachers': typeof AppTeachersRoute
+  '/time-tracking': typeof AppTimeTrackingRoute
   '/tuition': typeof AppTuitionRoute
   '/users': typeof AppUsersRoute
+  '/workload-view': typeof AppWorkloadViewRoute
   '/accounting/expenses': typeof AppAccountingExpensesRoute
   '/accounting/payments': typeof AppAccountingPaymentsRoute
   '/marketing/campaigns': typeof AppMarketingCampaignsRoute
@@ -261,20 +309,26 @@ export interface FileRoutesById {
   '/_app/attendance-tracking': typeof AppAttendanceTrackingRoute
   '/_app/audit': typeof AppAuditRoute
   '/_app/classes': typeof AppClassesRoute
+  '/_app/comments-threads': typeof AppCommentsThreadsRoute
   '/_app/dashboard': typeof AppDashboardRoute
   '/_app/employees': typeof AppEmployeesRoute
+  '/_app/gantt-chart': typeof AppGanttChartRoute
   '/_app/homework': typeof AppHomeworkRoute
+  '/_app/kanban-board': typeof AppKanbanBoardRoute
   '/_app/leave-approve': typeof AppLeaveApproveRoute
   '/_app/marketing': typeof AppMarketingRouteWithChildren
   '/_app/payroll': typeof AppPayrollRoute
   '/_app/rooms': typeof AppRoomsRoute
   '/_app/salary': typeof AppSalaryRoute
   '/_app/schedule': typeof AppScheduleRoute
+  '/_app/sprint-planning': typeof AppSprintPlanningRoute
   '/_app/students': typeof AppStudentsRoute
   '/_app/task-assignment': typeof AppTaskAssignmentRoute
   '/_app/teachers': typeof AppTeachersRoute
+  '/_app/time-tracking': typeof AppTimeTrackingRoute
   '/_app/tuition': typeof AppTuitionRoute
   '/_app/users': typeof AppUsersRoute
+  '/_app/workload-view': typeof AppWorkloadViewRoute
   '/_app/accounting/expenses': typeof AppAccountingExpensesRoute
   '/_app/accounting/payments': typeof AppAccountingPaymentsRoute
   '/_app/marketing/campaigns': typeof AppMarketingCampaignsRoute
@@ -294,20 +348,26 @@ export interface FileRouteTypes {
     | '/attendance-tracking'
     | '/audit'
     | '/classes'
+    | '/comments-threads'
     | '/dashboard'
     | '/employees'
+    | '/gantt-chart'
     | '/homework'
+    | '/kanban-board'
     | '/leave-approve'
     | '/marketing'
     | '/payroll'
     | '/rooms'
     | '/salary'
     | '/schedule'
+    | '/sprint-planning'
     | '/students'
     | '/task-assignment'
     | '/teachers'
+    | '/time-tracking'
     | '/tuition'
     | '/users'
+    | '/workload-view'
     | '/accounting/expenses'
     | '/accounting/payments'
     | '/marketing/campaigns'
@@ -325,20 +385,26 @@ export interface FileRouteTypes {
     | '/attendance-tracking'
     | '/audit'
     | '/classes'
+    | '/comments-threads'
     | '/dashboard'
     | '/employees'
+    | '/gantt-chart'
     | '/homework'
+    | '/kanban-board'
     | '/leave-approve'
     | '/marketing'
     | '/payroll'
     | '/rooms'
     | '/salary'
     | '/schedule'
+    | '/sprint-planning'
     | '/students'
     | '/task-assignment'
     | '/teachers'
+    | '/time-tracking'
     | '/tuition'
     | '/users'
+    | '/workload-view'
     | '/accounting/expenses'
     | '/accounting/payments'
     | '/marketing/campaigns'
@@ -357,20 +423,26 @@ export interface FileRouteTypes {
     | '/_app/attendance-tracking'
     | '/_app/audit'
     | '/_app/classes'
+    | '/_app/comments-threads'
     | '/_app/dashboard'
     | '/_app/employees'
+    | '/_app/gantt-chart'
     | '/_app/homework'
+    | '/_app/kanban-board'
     | '/_app/leave-approve'
     | '/_app/marketing'
     | '/_app/payroll'
     | '/_app/rooms'
     | '/_app/salary'
     | '/_app/schedule'
+    | '/_app/sprint-planning'
     | '/_app/students'
     | '/_app/task-assignment'
     | '/_app/teachers'
+    | '/_app/time-tracking'
     | '/_app/tuition'
     | '/_app/users'
+    | '/_app/workload-view'
     | '/_app/accounting/expenses'
     | '/_app/accounting/payments'
     | '/_app/marketing/campaigns'
@@ -411,6 +483,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_app/workload-view': {
+      id: '/_app/workload-view'
+      path: '/workload-view'
+      fullPath: '/workload-view'
+      preLoaderRoute: typeof AppWorkloadViewRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/users': {
       id: '/_app/users'
       path: '/users'
@@ -423,6 +502,13 @@ declare module '@tanstack/react-router' {
       path: '/tuition'
       fullPath: '/tuition'
       preLoaderRoute: typeof AppTuitionRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/time-tracking': {
+      id: '/_app/time-tracking'
+      path: '/time-tracking'
+      fullPath: '/time-tracking'
+      preLoaderRoute: typeof AppTimeTrackingRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/teachers': {
@@ -444,6 +530,13 @@ declare module '@tanstack/react-router' {
       path: '/students'
       fullPath: '/students'
       preLoaderRoute: typeof AppStudentsRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/sprint-planning': {
+      id: '/_app/sprint-planning'
+      path: '/sprint-planning'
+      fullPath: '/sprint-planning'
+      preLoaderRoute: typeof AppSprintPlanningRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/schedule': {
@@ -488,11 +581,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppLeaveApproveRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/kanban-board': {
+      id: '/_app/kanban-board'
+      path: '/kanban-board'
+      fullPath: '/kanban-board'
+      preLoaderRoute: typeof AppKanbanBoardRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/homework': {
       id: '/_app/homework'
       path: '/homework'
       fullPath: '/homework'
       preLoaderRoute: typeof AppHomeworkRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/gantt-chart': {
+      id: '/_app/gantt-chart'
+      path: '/gantt-chart'
+      fullPath: '/gantt-chart'
+      preLoaderRoute: typeof AppGanttChartRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/employees': {
@@ -507,6 +614,13 @@ declare module '@tanstack/react-router' {
       path: '/dashboard'
       fullPath: '/dashboard'
       preLoaderRoute: typeof AppDashboardRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/comments-threads': {
+      id: '/_app/comments-threads'
+      path: '/comments-threads'
+      fullPath: '/comments-threads'
+      preLoaderRoute: typeof AppCommentsThreadsRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/classes': {
@@ -641,20 +755,26 @@ interface AppRouteChildren {
   AppAttendanceTrackingRoute: typeof AppAttendanceTrackingRoute
   AppAuditRoute: typeof AppAuditRoute
   AppClassesRoute: typeof AppClassesRoute
+  AppCommentsThreadsRoute: typeof AppCommentsThreadsRoute
   AppDashboardRoute: typeof AppDashboardRoute
   AppEmployeesRoute: typeof AppEmployeesRoute
+  AppGanttChartRoute: typeof AppGanttChartRoute
   AppHomeworkRoute: typeof AppHomeworkRoute
+  AppKanbanBoardRoute: typeof AppKanbanBoardRoute
   AppLeaveApproveRoute: typeof AppLeaveApproveRoute
   AppMarketingRoute: typeof AppMarketingRouteWithChildren
   AppPayrollRoute: typeof AppPayrollRoute
   AppRoomsRoute: typeof AppRoomsRoute
   AppSalaryRoute: typeof AppSalaryRoute
   AppScheduleRoute: typeof AppScheduleRoute
+  AppSprintPlanningRoute: typeof AppSprintPlanningRoute
   AppStudentsRoute: typeof AppStudentsRoute
   AppTaskAssignmentRoute: typeof AppTaskAssignmentRoute
   AppTeachersRoute: typeof AppTeachersRoute
+  AppTimeTrackingRoute: typeof AppTimeTrackingRoute
   AppTuitionRoute: typeof AppTuitionRoute
   AppUsersRoute: typeof AppUsersRoute
+  AppWorkloadViewRoute: typeof AppWorkloadViewRoute
   AppAccountingExpensesRoute: typeof AppAccountingExpensesRoute
   AppAccountingPaymentsRoute: typeof AppAccountingPaymentsRoute
 }
@@ -664,20 +784,26 @@ const AppRouteChildren: AppRouteChildren = {
   AppAttendanceTrackingRoute: AppAttendanceTrackingRoute,
   AppAuditRoute: AppAuditRoute,
   AppClassesRoute: AppClassesRoute,
+  AppCommentsThreadsRoute: AppCommentsThreadsRoute,
   AppDashboardRoute: AppDashboardRoute,
   AppEmployeesRoute: AppEmployeesRoute,
+  AppGanttChartRoute: AppGanttChartRoute,
   AppHomeworkRoute: AppHomeworkRoute,
+  AppKanbanBoardRoute: AppKanbanBoardRoute,
   AppLeaveApproveRoute: AppLeaveApproveRoute,
   AppMarketingRoute: AppMarketingRouteWithChildren,
   AppPayrollRoute: AppPayrollRoute,
   AppRoomsRoute: AppRoomsRoute,
   AppSalaryRoute: AppSalaryRoute,
   AppScheduleRoute: AppScheduleRoute,
+  AppSprintPlanningRoute: AppSprintPlanningRoute,
   AppStudentsRoute: AppStudentsRoute,
   AppTaskAssignmentRoute: AppTaskAssignmentRoute,
   AppTeachersRoute: AppTeachersRoute,
+  AppTimeTrackingRoute: AppTimeTrackingRoute,
   AppTuitionRoute: AppTuitionRoute,
   AppUsersRoute: AppUsersRoute,
+  AppWorkloadViewRoute: AppWorkloadViewRoute,
   AppAccountingExpensesRoute: AppAccountingExpensesRoute,
   AppAccountingPaymentsRoute: AppAccountingPaymentsRoute,
 }

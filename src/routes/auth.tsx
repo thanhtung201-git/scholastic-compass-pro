@@ -39,7 +39,7 @@ function AuthPage() {
             <GraduationCap className="size-6" />
           </div>
           <div>
-            <div className="font-semibold tracking-tight text-lg">MCNAEdu CRM</div>
+            <div className="font-semibold tracking-tight text-lg">MCNAEdu ERP</div>
             <div className="text-xs text-white/70">Academic ERP Suite</div>
           </div>
         </div>
@@ -73,7 +73,7 @@ function AuthPage() {
             <div className="size-9 rounded-lg bg-primary flex items-center justify-center text-primary-foreground">
               <GraduationCap className="size-5" />
             </div>
-            <div className="font-semibold">MCNAEdu CRM</div>
+            <div className="font-semibold">MCNAEdu ERP</div>
           </div>
 
           <div>
