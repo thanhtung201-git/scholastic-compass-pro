@@ -44,6 +44,7 @@ import { Route as AppMarketingFollowUpRouteImport } from './routes/_app/marketin
 import { Route as AppMarketingCampaignsRouteImport } from './routes/_app/marketing.campaigns'
 import { Route as AppAccountingPaymentsRouteImport } from './routes/_app/accounting.payments'
 import { Route as AppAccountingExpensesRouteImport } from './routes/_app/accounting.expenses'
+import { Route as AppAccountingBalanceSheetRouteImport } from './routes/_app/accounting.balance-sheet'
 import { Route as AppMarketingLeadsIdRouteImport } from './routes/_app/marketing.leads.$id'
 
 const AuthRoute = AuthRouteImport.update({
@@ -220,6 +221,12 @@ const AppAccountingExpensesRoute = AppAccountingExpensesRouteImport.update({
   path: '/accounting/expenses',
   getParentRoute: () => AppRoute,
 } as any)
+const AppAccountingBalanceSheetRoute =
+  AppAccountingBalanceSheetRouteImport.update({
+    id: '/accounting/balance-sheet',
+    path: '/accounting/balance-sheet',
+    getParentRoute: () => AppRoute,
+  } as any)
 const AppMarketingLeadsIdRoute = AppMarketingLeadsIdRouteImport.update({
   id: '/$id',
   path: '/$id',
@@ -253,6 +260,7 @@ export interface FileRoutesByFullPath {
   '/tuition': typeof AppTuitionRoute
   '/users': typeof AppUsersRoute
   '/workload-view': typeof AppWorkloadViewRoute
+  '/accounting/balance-sheet': typeof AppAccountingBalanceSheetRoute
   '/accounting/expenses': typeof AppAccountingExpensesRoute
   '/accounting/payments': typeof AppAccountingPaymentsRoute
   '/marketing/campaigns': typeof AppMarketingCampaignsRoute
@@ -290,6 +298,7 @@ export interface FileRoutesByTo {
   '/tuition': typeof AppTuitionRoute
   '/users': typeof AppUsersRoute
   '/workload-view': typeof AppWorkloadViewRoute
+  '/accounting/balance-sheet': typeof AppAccountingBalanceSheetRoute
   '/accounting/expenses': typeof AppAccountingExpensesRoute
   '/accounting/payments': typeof AppAccountingPaymentsRoute
   '/marketing/campaigns': typeof AppMarketingCampaignsRoute
@@ -329,6 +338,7 @@ export interface FileRoutesById {
   '/_app/tuition': typeof AppTuitionRoute
   '/_app/users': typeof AppUsersRoute
   '/_app/workload-view': typeof AppWorkloadViewRoute
+  '/_app/accounting/balance-sheet': typeof AppAccountingBalanceSheetRoute
   '/_app/accounting/expenses': typeof AppAccountingExpensesRoute
   '/_app/accounting/payments': typeof AppAccountingPaymentsRoute
   '/_app/marketing/campaigns': typeof AppMarketingCampaignsRoute
@@ -368,6 +378,7 @@ export interface FileRouteTypes {
     | '/tuition'
     | '/users'
     | '/workload-view'
+    | '/accounting/balance-sheet'
     | '/accounting/expenses'
     | '/accounting/payments'
     | '/marketing/campaigns'
@@ -405,6 +416,7 @@ export interface FileRouteTypes {
     | '/tuition'
     | '/users'
     | '/workload-view'
+    | '/accounting/balance-sheet'
     | '/accounting/expenses'
     | '/accounting/payments'
     | '/marketing/campaigns'
@@ -443,6 +455,7 @@ export interface FileRouteTypes {
     | '/_app/tuition'
     | '/_app/users'
     | '/_app/workload-view'
+    | '/_app/accounting/balance-sheet'
     | '/_app/accounting/expenses'
     | '/_app/accounting/payments'
     | '/_app/marketing/campaigns'
@@ -707,6 +720,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppAccountingExpensesRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/accounting/balance-sheet': {
+      id: '/_app/accounting/balance-sheet'
+      path: '/accounting/balance-sheet'
+      fullPath: '/accounting/balance-sheet'
+      preLoaderRoute: typeof AppAccountingBalanceSheetRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/marketing/leads/$id': {
       id: '/_app/marketing/leads/$id'
       path: '/$id'
@@ -775,6 +795,7 @@ interface AppRouteChildren {
   AppTuitionRoute: typeof AppTuitionRoute
   AppUsersRoute: typeof AppUsersRoute
   AppWorkloadViewRoute: typeof AppWorkloadViewRoute
+  AppAccountingBalanceSheetRoute: typeof AppAccountingBalanceSheetRoute
   AppAccountingExpensesRoute: typeof AppAccountingExpensesRoute
   AppAccountingPaymentsRoute: typeof AppAccountingPaymentsRoute
 }
@@ -804,6 +825,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppTuitionRoute: AppTuitionRoute,
   AppUsersRoute: AppUsersRoute,
   AppWorkloadViewRoute: AppWorkloadViewRoute,
+  AppAccountingBalanceSheetRoute: AppAccountingBalanceSheetRoute,
   AppAccountingExpensesRoute: AppAccountingExpensesRoute,
   AppAccountingPaymentsRoute: AppAccountingPaymentsRoute,
 }
