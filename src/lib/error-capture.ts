@@ -15,6 +15,12 @@ if (typeof globalThis.addEventListener === "function") {
   );
 }
 
+// Also capture server-side (Node) errors so SSR throws are recorded before h3 swallows them.
+if (typeof process !== "undefined" && typeof (process as any).on === "function") {
+  (process as any).on("uncaughtException", (err: unknown) => record(err));
+  (process as any).on("unhandledRejection", (reason: unknown) => record(reason));
+}
+
 export function consumeLastCapturedError(): unknown {
   if (!lastCapturedError) return undefined;
   if (Date.now() - lastCapturedError.at > TTL_MS) {
