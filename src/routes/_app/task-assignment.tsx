@@ -14,8 +14,11 @@ import { Badge } from "@/components/ui/badge";
 import { format, differenceInDays, isPast, parseISO, parse, isValid } from "date-fns";
 import { CalendarIcon, Plus, AlertCircle, Clock, CheckCircle2, Circle, List, LayoutGrid, GripHorizontal, Eye } from "lucide-react";
 import { TaskDetailModal } from "@/components/tasks/TaskDetailModal";
+<<<<<<< HEAD
 
 type TaskStatus = "Todo" | "In Progress" | "Review" | "Done";
+=======
+>>>>>>> b83ac4c0e70a4f669d4122bb4a971c0e636495a7
 
 type Department = { id: string; department_name: string };
 type UserOption = { id: string; name: string };
@@ -27,7 +30,11 @@ type Task = {
   assigned_to: string;
   assigned_by: string;
   priority: "Low" | "Medium" | "High" | "Critical";
+<<<<<<< HEAD
   status: TaskStatus;
+=======
+  status: "Todo" | "In Progress" | "Review" | "Done";
+>>>>>>> b83ac4c0e70a4f669d4122bb4a971c0e636495a7
   due_date: string;
   created_at: string;
   users?: { name?: string };
@@ -42,7 +49,11 @@ const ROLE_DEPARTMENT_MAP: Record<string, string> = {
   "HR Manager": "Human Resource",
   "Marketing Manager": "Marketing",
 };
+<<<<<<< HEAD
 const STATUSES: TaskStatus[] = ["Todo", "In Progress", "Review", "Done"];
+=======
+const STATUSES = ["Todo", "In Progress", "Review", "Done"];
+>>>>>>> b83ac4c0e70a4f669d4122bb4a971c0e636495a7
 
 function canAssignOthers(role: string) {
   return CAN_ASSIGN_ROLES.includes(role);
@@ -189,7 +200,11 @@ function TaskAssignmentPage() {
     };
 
     setIsSubmitting(true);
+<<<<<<< HEAD
     const { error } = await supabase.from("tasks").insert([payload]).select().single();
+=======
+    const { data, error } = await supabase.from("tasks").insert([payload]).select().single();
+>>>>>>> b83ac4c0e70a4f669d4122bb4a971c0e636495a7
     setIsSubmitting(false);
 
     if (!error) {
@@ -555,7 +570,11 @@ function TaskAssignmentPage() {
       )}
 
       {modalTaskId && (
+<<<<<<< HEAD
         <TaskDetailModal taskId={modalTaskId} open={true} onOpenChange={(open) => { if (!open) setModalTaskId(null); }} userId={user?.id ?? ""} />
+=======
+        <TaskDetailModal taskId={modalTaskId} open={true} onOpenChange={(open) => { if (!open) setModalTaskId(null); }} userId={user?.id} />
+>>>>>>> b83ac4c0e70a4f669d4122bb4a971c0e636495a7
       )}
     </div>
   );
