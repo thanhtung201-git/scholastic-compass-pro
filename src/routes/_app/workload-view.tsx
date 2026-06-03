@@ -12,6 +12,7 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
+import { useCurrentUserDepartment } from "@/hooks/use-current-user-department";
 import { supabase } from "@/lib/supabase";
 import { cn } from "@/lib/utils";
 
@@ -26,6 +27,7 @@ type TaskRow = {
   id: string;
   title: string;
   assigned_to: string | null;
+  department: string | null;
   status: string | null;
   priority: string | null;
   due_date: string | null;
@@ -91,6 +93,12 @@ function getStatusClass(status: string | null) {
 }
 
 function WorkloadViewPage() {
+  const {
+    department: currentUserDepartment,
+    canViewAllDepartments,
+    loading: departmentLoading,
+    error: departmentError,
+  } = useCurrentUserDepartment();
   const [tasks, setTasks] = useState<TaskRow[]>([]);
   const [roleDepartments, setRoleDepartments] = useState<RoleDepartment[]>([]);
   const [loading, setLoading] = useState(true);
@@ -102,17 +110,32 @@ function WorkloadViewPage() {
     let active = true;
 
     async function fetchWorkload() {
+      if (departmentLoading) return;
+      if (!canViewAllDepartments && !currentUserDepartment) {
+        setTasks([]);
+        setRoleDepartments([]);
+        setError(departmentError ?? "Your role is not assigned to a department.");
+        setLoading(false);
+        return;
+      }
+
       setLoading(true);
       setError(null);
 
+      let taskQuery = supabase
+        .from("tasks")
+        .select(`
+          id, title, assigned_to, department, status, priority, due_date, created_at,
+          users!tasks_assigned_to_fkey(name, role)
+        `)
+        .order("created_at", { ascending: true });
+
+      if (!canViewAllDepartments) {
+        taskQuery = taskQuery.eq("department", currentUserDepartment);
+      }
+
       const [tasksResult, rolesResult] = await Promise.all([
-        supabase
-          .from("tasks")
-          .select(`
-            id, title, assigned_to, status, priority, due_date, created_at,
-            users!tasks_assigned_to_fkey(name, role)
-          `)
-          .order("created_at", { ascending: true }),
+        taskQuery,
         supabase.from("roles").select("role_name, department_name"),
       ]);
 
@@ -143,7 +166,7 @@ function WorkloadViewPage() {
     return () => {
       active = false;
     };
-  }, []);
+  }, [canViewAllDepartments, currentUserDepartment, departmentError, departmentLoading]);
 
   const departmentByRole = useMemo(() => {
     return new Map(roleDepartments.map((role) => [role.role_name, role.department_name]));
@@ -162,7 +185,11 @@ function WorkloadViewPage() {
       .map(([id, userTasks]) => {
         const firstTask = userTasks[0];
         const role = firstTask.user_role;
-        const department = departmentByRole.get(role) ?? "Unassigned";
+        const department =
+          firstTask.department?.trim() ||
+          currentUserDepartment ||
+          departmentByRole.get(role) ||
+          "Unassigned";
         const active_count = userTasks.filter((task) =>
           ACTIVE_STATUSES.has(task.status ?? ""),
         ).length;
@@ -187,7 +214,7 @@ function WorkloadViewPage() {
         };
       })
       .sort((a, b) => b.capacity_pct - a.capacity_pct || a.name.localeCompare(b.name));
-  }, [departmentByRole, tasks]);
+  }, [currentUserDepartment, departmentByRole, tasks]);
 
   const departments = useMemo(() => {
     return ["All", ...Array.from(new Set(users.map((user) => user.department)))];

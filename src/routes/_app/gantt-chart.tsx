@@ -17,6 +17,7 @@ import { ChartGantt, Loader2 } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { useCurrentUserDepartment } from "@/hooks/use-current-user-department";
 import {
   Tooltip,
   TooltipContent,
@@ -103,6 +104,12 @@ function getTaskBounds(task: Pick<TaskRow, "created_at" | "due_date">) {
 }
 
 function GanttChartPage() {
+  const {
+    department: currentUserDepartment,
+    canViewAllDepartments,
+    loading: departmentLoading,
+    error: departmentError,
+  } = useCurrentUserDepartment();
   const [tasks, setTasks] = useState<TaskRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -113,16 +120,30 @@ function GanttChartPage() {
     let active = true;
 
     async function fetchTasks() {
+      if (departmentLoading) return;
+      if (!canViewAllDepartments && !currentUserDepartment) {
+        setTasks([]);
+        setError(departmentError ?? "Your role is not assigned to a department.");
+        setLoading(false);
+        return;
+      }
+
       setLoading(true);
       setError(null);
 
-      const { data, error: fetchError } = await supabase
+      let query = supabase
         .from("tasks")
         .select(`
           id, title, department, assigned_to, priority, status, due_date, created_at,
           users!tasks_assigned_to_fkey(name)
         `)
         .order("created_at", { ascending: true });
+
+      if (!canViewAllDepartments) {
+        query = query.eq("department", currentUserDepartment);
+      }
+
+      const { data, error: fetchError } = await query;
 
       if (!active) return;
 
@@ -146,7 +167,7 @@ function GanttChartPage() {
     return () => {
       active = false;
     };
-  }, []);
+  }, [canViewAllDepartments, currentUserDepartment, departmentError, departmentLoading]);
 
   const departments = useMemo(() => {
     const values = tasks

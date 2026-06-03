@@ -24,6 +24,7 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import { Textarea } from "@/components/ui/textarea";
+import { useCurrentUserDepartment } from "@/hooks/use-current-user-department";
 import { useAuth } from "@/lib/auth-context";
 import { supabase } from "@/lib/supabase";
 import { cn } from "@/lib/utils";
@@ -37,6 +38,7 @@ type TaskSummary = {
   title: string;
   status: string | null;
   priority: string | null;
+  department: string | null;
   assigned_to: string | null;
   due_date: string | null;
   assignee_name: string;
@@ -175,10 +177,12 @@ function CommentItem({
 
 function CommentsThreadPanel({
   taskId,
+  currentDepartment,
   open,
   onOpenChange,
 }: {
   taskId: string | null;
+  currentDepartment: string | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
@@ -198,32 +202,42 @@ function CommentsThreadPanel({
 
   const fetchThread = async () => {
     if (!taskId) return;
+    if (!currentDepartment) {
+      setTask(null);
+      setComments([]);
+      setError("Your role is not assigned to a department.");
+      return;
+    }
+
     setLoading(true);
     setError(null);
 
-    const [taskResult, commentsResult] = await Promise.all([
-      supabase
-        .from("tasks")
-        .select(`
-          id, title, status, priority, assigned_to, due_date,
-          users!tasks_assigned_to_fkey(name)
-        `)
-        .eq("id", taskId)
-        .single(),
-      supabase
-        .from("task_comments")
-        .select("id, task_id, user_id, parent_id, body, created_at, users(name)")
-        .eq("task_id", taskId)
-        .order("created_at", { ascending: true }),
-    ]);
+    const taskResult = await supabase
+      .from("tasks")
+      .select(`
+        id, title, status, priority, department, assigned_to, due_date,
+        users!tasks_assigned_to_fkey(name)
+      `)
+      .eq("id", taskId)
+      .eq("department", currentDepartment)
+      .single();
 
     if (taskResult.error) {
       setError(taskResult.error.message);
       setTask(null);
+      setComments([]);
+      setLoading(false);
+      return;
     } else {
       const row = taskResult.data as RawTask;
       setTask({ ...row, assignee_name: row.users?.name ?? "Unassigned" });
     }
+
+    const commentsResult = await supabase
+      .from("task_comments")
+      .select("id, task_id, user_id, parent_id, body, created_at, users(name)")
+      .eq("task_id", taskId)
+      .order("created_at", { ascending: true });
 
     if (commentsResult.error) {
       setError(commentsResult.error.message);
@@ -262,7 +276,7 @@ function CommentsThreadPanel({
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [open, taskId]);
+  }, [currentDepartment, open, taskId]);
 
   const groupedComments = useMemo(() => {
     const topLevel = comments.filter((comment) => !comment.parent_id);
@@ -313,7 +327,7 @@ function CommentsThreadPanel({
   };
 
   const handleSend = async () => {
-    if (!taskId || !user?.id || !body.trim()) return;
+    if (!taskId || !task || !user?.id || !body.trim()) return;
     setSending(true);
     setError(null);
 
@@ -478,6 +492,11 @@ function CommentsThreadPanel({
 }
 
 function CommentsThreadsPage() {
+  const {
+    department: currentUserDepartment,
+    loading: departmentLoading,
+    error: departmentError,
+  } = useCurrentUserDepartment();
   const [tasks, setTasks] = useState<TaskSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -487,14 +506,23 @@ function CommentsThreadsPage() {
     let active = true;
 
     async function fetchTasks() {
+      if (departmentLoading) return;
+      if (!currentUserDepartment) {
+        setTasks([]);
+        setError(departmentError ?? "Your role is not assigned to a department.");
+        setLoading(false);
+        return;
+      }
+
       setLoading(true);
       setError(null);
       const { data, error: fetchError } = await supabase
         .from("tasks")
         .select(`
-          id, title, status, priority, assigned_to, due_date,
+          id, title, status, priority, department, assigned_to, due_date,
           users!tasks_assigned_to_fkey(name)
         `)
+        .eq("department", currentUserDepartment)
         .order("created_at", { ascending: false });
 
       if (!active) return;
@@ -518,7 +546,7 @@ function CommentsThreadsPage() {
     return () => {
       active = false;
     };
-  }, []);
+  }, [currentUserDepartment, departmentError, departmentLoading]);
 
   return (
     <div className="space-y-6 p-6">
@@ -579,6 +607,7 @@ function CommentsThreadsPage() {
 
       <CommentsThreadPanel
         taskId={selectedTaskId}
+        currentDepartment={currentUserDepartment}
         open={Boolean(selectedTaskId)}
         onOpenChange={(open) => !open && setSelectedTaskId(null)}
       />
