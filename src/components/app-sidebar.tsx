@@ -1,8 +1,8 @@
 import { Link, useRouterState } from "@tanstack/react-router";
 import { useState } from "react";
 import {
-  LayoutDashboard, Users, BookOpen, Calendar, ClipboardList, GraduationCap,
-  Receipt, ClipboardCheck, Banknote, Shield, DoorOpen, FileText, CheckSquare, Target, ChevronDown, Tag, CreditCard, Wallet,
+  LayoutDashboard, Users, ClipboardList, GraduationCap,
+  Receipt, ClipboardCheck, Banknote, Shield, FileText, CheckSquare, ChevronDown, CreditCard, Wallet,
   Kanban, ChartGantt, CalendarClock, UsersRound, MessagesSquare, Timer, type LucideIcon,
 } from "lucide-react";
 import {
@@ -37,16 +37,6 @@ const navSections: NavSection[] = [
     ]
   },
   {
-    label: "Academic",
-    items: [
-      { title: "Students", url: "/students", icon: Users, roles: ["Admin", "Director", "Academic Manager", "Academic Staff"] },
-      { title: "Classes", url: "/classes", icon: BookOpen, roles: ["Admin", "Director", "Academic Manager", "Academic Staff"] },
-      { title: "Schedule", url: "/schedule", icon: Calendar, roles: ["Admin", "Director", "Academic Manager", "Academic Staff"] },
-      { title: "Attendance", url: "/attendance", icon: ClipboardCheck, roles: ["Admin", "Director", "Academic Manager", "Academic Staff"] },
-      { title: "Homework", url: "/homework", icon: ClipboardList, roles: ["Admin", "Director", "Academic Manager", "Academic Staff"] },
-    ]
-  },
-  {
     label: "Finance & Accounting",
     items: [
       { title: "Tuition Invoices", url: "/tuition", icon: Receipt, roles: ["Accountant","Admin","Director","Student"] },
@@ -55,25 +45,6 @@ const navSections: NavSection[] = [
       { title: "Balance Sheet", url: "/accounting/balance-sheet", icon: FileText, roles: ["Accountant","Admin","Director","Finance Manager"] },
       { title: "Payroll", url: "/payroll", icon: Banknote, roles: ["Accountant","Academic Staff","Director","Teacher","Admin"] },
       { title: "Salary", url: "/salary", icon: Banknote, roles: ["Accountant","Admin","Director","Finance Manager"] },
-      { title: "Rooms & Guests", url: "/rooms", icon: DoorOpen, roles: ["Admin", "Director", "Finance Manager", "Accountant"] },
-    ]
-  },
-  {
-    label: "Marketing",
-    items: [
-      {
-        title: "Marketing",
-        url: "/marketing",
-        icon: Target,
-        roles: ["Admin", "Director", "Academic Staff"],
-        children: [
-          { title: "Leads", url: "/marketing/leads", icon: Users, roles: ["Admin", "Director", "Academic Staff"] },
-          { title: "Campaigns", url: "/marketing/campaigns", icon: CheckSquare, roles: ["Admin", "Director", "Academic Staff"] },
-          { title: "Sources", url: "/marketing/sources", icon: BookOpen, roles: ["Admin", "Director"] },
-          { title: "Follow-up", url: "/marketing/follow-up", icon: ClipboardList, roles: ["Admin", "Director", "Academic Staff"] },
-          { title: "Promotions", url: "/marketing/promotions", icon: Tag, roles: ["Admin", "Director"] },
-        ],
-      },
     ]
   },
   {
