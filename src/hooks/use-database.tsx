@@ -84,7 +84,7 @@ export function DatabaseProvider({ children }: { children: ReactNode }) {
   const { data: employees = [], isLoading: loadEmployees } = useQuery({
     queryKey: ["employees"],
     queryFn: async () => {
-      const { data, error } = await supabase.from("employees").select("*");
+      const { data, error } = await supabase.from("employee").select("*");
       if (error) throw error;
       return data;
     },
