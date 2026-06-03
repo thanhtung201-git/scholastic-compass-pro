@@ -127,12 +127,24 @@ function TaskAssignmentPage() {
     assigned_to: "",
     priority: "Medium",
     due_date: "",
+    estimated_hours: 0,
   });
+
+  const [sprints, setSprints] = useState<any[]>([]);
 
   useEffect(() => {
     supabase.from("department").select("id, department_name").then(({ data, error }) => {
       if (!error && data) setDepartments(data as Department[]);
     });
+    
+    // Fetch active sprints
+    supabase.from("sprints")
+      .select("id, name, status")
+      .in("status", ["Planning", "Active"])
+      .order("start_date", { ascending: false })
+      .then(({ data, error }) => {
+        if (!error && data) setSprints(data);
+      });
   }, []);
 
   const fetchTasks = async () => {
@@ -179,6 +191,7 @@ function TaskAssignmentPage() {
     const deptObj = departments.find((d) => d.id === form.department);
     const departmentName = deptObj ? deptObj.department_name : null;
 
+    // Ép cứng sprint_id thành null để task luôn nằm trong Backlog của Sprint Planning
     const payload = {
       title: form.title.trim(),
       description: form.description.trim() || null,
@@ -188,6 +201,8 @@ function TaskAssignmentPage() {
       priority: form.priority,
       status: "Todo",
       due_date: formattedDueDate,
+      sprint_id: null, 
+      estimated_hours: form.estimated_hours > 0 ? form.estimated_hours : null,
     };
 
     setIsSubmitting(true);
@@ -195,7 +210,7 @@ function TaskAssignmentPage() {
     setIsSubmitting(false);
 
     if (!error) {
-      setForm({ title: "", description: "", department: "", assigned_to: user?.id ?? "", priority: "Medium", due_date: "" });
+      setForm({ title: "", description: "", department: "", assigned_to: user?.id ?? "", priority: "Medium", due_date: "", estimated_hours: 0 });
       setSelectedDept("");
       setCalendarOpen(false);
       setSubmitError(null);

@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
+import { useAuth } from "@/lib/auth-context";
 import { supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,11 +9,16 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { PageHeader } from "@/components/page-header";
 import { Plus, Trash2, Calendar, Target, Users, Clock, TrendingUp } from "lucide-react";
-import { format, parseISO } from "date-fns";
+import { format } from "date-fns";
 
-export const Route = createFileRoute("/_app/sprint-planning")({
-  component: SprintPlanningPage,
-});
+// Role mapping giống task-assignment.tsx
+const ROLE_DEPARTMENT_MAP: Record<string, string> = {
+  "Finance Manager": "Finance",
+  "Academic Manager": "Academic",
+  "Admin": "IT",
+  "HR Manager": "Human Resource",
+  "Marketing Manager": "Marketing",
+};
 
 type Sprint = {
   id: string;
@@ -32,25 +38,18 @@ type Task = {
   description?: string;
   status: string;
   priority: string;
-  sprint_id?: string;
+  sprint_id?: string | null;
   project_id?: string;
   assigned_to?: string;
   estimated_hours?: number;
-  project?: { name: string };
-  assigned_user?: { name: string };
-};
-
-type Project = {
-  id: string;
-  code: string;
-  name: string;
-  description?: string;
 };
 
 function SprintPlanningPage() {
+  const { user } = useAuth();
+  const userRole: string = (user as any)?.role ?? "";
+
   const [sprints, setSprints] = useState<Sprint[]>([]);
   const [tasks, setTasks] = useState<Task[]>([]);
-  const [projects, setProjects] = useState<Project[]>([]);
   const [selectedSprint, setSelectedSprint] = useState<Sprint | null>(null);
   const [isSprintDialogOpen, setIsSprintDialogOpen] = useState(false);
   const [isTaskDialogOpen, setIsTaskDialogOpen] = useState(false);
@@ -71,53 +70,84 @@ function SprintPlanningPage() {
   });
 
   // Fetch sprints
-  const fetchSprints = async () => {
-    const { data, error } = await supabase
-      .from("sprints")
-      .select("*")
-      .order("start_date", { ascending: false });
+  const fetchSprints = async (updatedSprintId?: string) => {
+    try {
+      const { data, error } = await supabase
+        .from("sprints")
+        .select("*")
+        .order("start_date", { ascending: false });
 
-    if (!error && data) {
-      setSprints(data);
-      if (!selectedSprint && data.length > 0) {
-        setSelectedSprint(data[0]);
+      if (error) {
+        console.error("Error fetching sprints:", error);
+        return;
       }
+
+      if (data) {
+        setSprints(data);
+        const currentSprintId = updatedSprintId || selectedSprint?.id;
+        if (currentSprintId) {
+          const freshSprint = data.find((s) => s.id === currentSprintId);
+          setSelectedSprint(freshSprint || data[0] || null);
+        } else if (data.length > 0) {
+          setSelectedSprint(data[0]);
+        }
+      }
+    } catch (err) {
+      console.error("Sprints fetch error:", err);
     }
   };
 
-  // Fetch tasks
+  // Fetch tasks — dùng cùng logic filter theo role như task-assignment.tsx
   const fetchTasks = async () => {
-    const { data, error } = await supabase
-      .from("tasks")
-      .select(`
-        *,
-        projects(name),
-        users!tasks_assigned_to_fkey(name)
-      `)
-      .order("created_at", { ascending: false });
+    if (!user?.id) return;
 
-    if (!error && data) {
-      setTasks(data);
-    }
-  };
+    try {
+      // Build query giống buildTaskQuery trong task-assignment
+      let query = supabase
+        .from("tasks")
+        .select("id, title, description, status, priority, sprint_id, assigned_to, estimated_hours, department")
+        .order("created_at", { ascending: false });
 
-  // Fetch projects
-  const fetchProjects = async () => {
-    const { data, error } = await supabase
-      .from("projects")
-      .select("id, code, name, description")
-      .order("name");
+      // Áp dụng filter theo role — giống hệt task-assignment.tsx
+      if (userRole !== "Director") {
+        const deptName = ROLE_DEPARTMENT_MAP[userRole];
+        if (deptName) {
+          query = query.eq("department", deptName);
+        } else {
+          query = query.eq("assigned_to", user.id);
+        }
+      }
 
-    if (!error && data) {
-      setProjects(data);
+      const { data, error } = await query;
+
+      if (error) {
+        console.error("Error fetching tasks:", error);
+        return;
+      }
+
+      if (data) {
+        setTasks(data);
+      }
+    } catch (err) {
+      console.error("Tasks fetch error:", err);
     }
   };
 
   useEffect(() => {
     fetchSprints();
-    fetchTasks();
-    fetchProjects();
   }, []);
+
+  // Fetch tasks sau khi có user (giống task-assignment dùng [user, userRole])
+  useEffect(() => {
+    fetchTasks();
+  }, [user, userRole]);
+
+  // Set sprint_id khi dialog mở, tránh race condition với onClick
+  useEffect(() => {
+    if (isTaskDialogOpen && selectedSprint) {
+      setTaskForm({ task_id: "", sprint_id: selectedSprint.id });
+    }
+  }, [isTaskDialogOpen, selectedSprint?.id]);
 
   // Create sprint
   const handleCreateSprint = async (e: React.FormEvent) => {
@@ -134,13 +164,13 @@ function SprintPlanningPage() {
       status: "Planning",
     };
 
-    const { error } = await supabase.from("sprints").insert([payload]);
+    const { data, error } = await supabase.from("sprints").insert([payload]).select();
     setIsSubmitting(false);
 
     if (!error) {
       setIsSprintDialogOpen(false);
       setSprintForm({ name: "", description: "", start_date: "", end_date: "", goal: "", capacity: 0 });
-      fetchSprints();
+      fetchSprints(data?.[0]?.id);
     } else {
       console.error(error);
       alert("Failed to create sprint");
@@ -150,6 +180,8 @@ function SprintPlanningPage() {
   // Assign task to sprint
   const handleAssignTask = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!taskForm.task_id || !taskForm.sprint_id) return;
+
     setIsSubmitting(true);
 
     const { error } = await supabase
@@ -161,8 +193,10 @@ function SprintPlanningPage() {
 
     if (!error) {
       setIsTaskDialogOpen(false);
+      const targetSprintId = taskForm.sprint_id;
       setTaskForm({ task_id: "", sprint_id: "" });
-      fetchTasks();
+      await fetchTasks();
+      await fetchSprints(targetSprintId);
     } else {
       console.error(error);
       alert("Failed to assign task");
@@ -172,9 +206,14 @@ function SprintPlanningPage() {
   // Delete sprint
   const handleDeleteSprint = async (id: string) => {
     if (confirm("Are you sure? This will unassign all tasks from this sprint.")) {
-      await supabase.from("sprints").delete().eq("id", id);
-      fetchSprints();
-      setSelectedSprint(null);
+      const { error } = await supabase.from("sprints").delete().eq("id", id);
+      if (!error) {
+        if (selectedSprint?.id === id) setSelectedSprint(null);
+        fetchSprints();
+        fetchTasks();
+      } else {
+        alert("Failed to delete sprint");
+      }
     }
   };
 
@@ -187,20 +226,23 @@ function SprintPlanningPage() {
 
     if (!error) {
       fetchTasks();
+      if (selectedSprint) fetchSprints(selectedSprint.id);
     }
   };
 
-  // Get sprint tasks
   const sprintTasks = selectedSprint
     ? tasks.filter((t) => t.sprint_id === selectedSprint.id)
     : [];
 
-  // Get backlog tasks (not assigned to any sprint)
   const backlogTasks = tasks.filter((t) => !t.sprint_id);
 
-  // Calculate capacity metrics
   const totalEstimatedHours = sprintTasks.reduce((sum, t) => sum + (t.estimated_hours || 0), 0);
   const capacityRemaining = (selectedSprint?.capacity || 0) - totalEstimatedHours;
+
+  const formatLocalDate = (dateStr: string) => {
+    if (!dateStr) return "";
+    return format(new Date(dateStr), "MMM d, yyyy");
+  };
 
   return (
     <div className="space-y-6 p-6">
@@ -278,7 +320,7 @@ function SprintPlanningPage() {
                     <Input
                       type="number"
                       placeholder="160"
-                      value={sprintForm.capacity}
+                      value={sprintForm.capacity || ""}
                       onChange={(e) => setSprintForm({ ...sprintForm, capacity: Number(e.target.value) })}
                       min="0"
                     />
@@ -291,7 +333,7 @@ function SprintPlanningPage() {
             </Dialog>
           </div>
 
-          <div className="space-y-2">
+          <div className="space-y-2 max-h-[600px] overflow-y-auto pr-1">
             {sprints.length === 0 ? (
               <p className="text-sm text-muted-foreground">No sprints created yet.</p>
             ) : (
@@ -309,7 +351,7 @@ function SprintPlanningPage() {
                     <div className="flex-1 min-w-0">
                       <p className="font-medium truncate">{sprint.name}</p>
                       <p className="text-xs text-muted-foreground">
-                        {format(parseISO(sprint.start_date), "MMM d")} - {format(parseISO(sprint.end_date), "MMM d")}
+                        {formatLocalDate(sprint.start_date)} - {formatLocalDate(sprint.end_date)}
                       </p>
                       <p className="text-xs font-semibold text-primary mt-1">
                         {tasks.filter((t) => t.sprint_id === sprint.id).length} tasks
@@ -322,7 +364,7 @@ function SprintPlanningPage() {
                         e.stopPropagation();
                         handleDeleteSprint(sprint.id);
                       }}
-                      className="h-6 w-6 p-0"
+                      className="h-8 w-8 p-0 text-muted-foreground hover:text-destructive transition-colors"
                     >
                       <Trash2 className="h-4 w-4" />
                     </Button>
@@ -352,9 +394,8 @@ function SprintPlanningPage() {
                       <Calendar className="h-3 w-3" />
                       Duration
                     </p>
-                    <p className="text-sm font-semibold">
-                      {format(parseISO(selectedSprint.start_date), "MMM d")} -{" "}
-                      {format(parseISO(selectedSprint.end_date), "MMM d")}
+                    <p className="text-xs font-semibold">
+                      {formatLocalDate(selectedSprint.start_date)} - {formatLocalDate(selectedSprint.end_date)}
                     </p>
                   </div>
                   <div className="space-y-1">
@@ -378,7 +419,7 @@ function SprintPlanningPage() {
                     </p>
                     <p
                       className={`text-sm font-semibold ${
-                        capacityRemaining < 0 ? "text-red-600" : "text-green-600"
+                        capacityRemaining < 0 ? "text-destructive" : "text-green-600"
                       }`}
                     >
                       {capacityRemaining}h
@@ -390,9 +431,7 @@ function SprintPlanningPage() {
               {/* Sprint Tasks */}
               <div className="rounded-lg border bg-card p-4 space-y-4">
                 <div className="flex items-center justify-between">
-                  <h4 className="font-semibold">
-                    Tasks in Sprint ({sprintTasks.length})
-                  </h4>
+                  <h4 className="font-semibold">Tasks in Sprint ({sprintTasks.length})</h4>
                   <Dialog open={isTaskDialogOpen} onOpenChange={setIsTaskDialogOpen}>
                     <DialogTrigger asChild>
                       <Button size="sm" variant="outline">
@@ -409,19 +448,23 @@ function SprintPlanningPage() {
                           <label className="block text-sm font-medium mb-1">Select Task</label>
                           <Select
                             value={taskForm.task_id}
-                            onValueChange={(value) =>
-                              setTaskForm({ ...taskForm, task_id: value })
-                            }
+                            onValueChange={(value) => setTaskForm({ ...taskForm, task_id: value })}
                           >
                             <SelectTrigger>
                               <SelectValue placeholder="Choose a task" />
                             </SelectTrigger>
                             <SelectContent>
-                              {backlogTasks.map((task) => (
-                                <SelectItem key={task.id} value={task.id}>
-                                  {task.title} ({task.estimated_hours || 0}h)
-                                </SelectItem>
-                              ))}
+                              {backlogTasks.length === 0 ? (
+                                <div className="py-4 px-2 text-sm text-muted-foreground text-center">
+                                  No tasks available. Create tasks in Task Assignment first.
+                                </div>
+                              ) : (
+                                backlogTasks.map((task) => (
+                                  <SelectItem key={task.id} value={task.id}>
+                                    {task.title} ({task.estimated_hours || 0}h)
+                                  </SelectItem>
+                                ))
+                              )}
                             </SelectContent>
                           </Select>
                         </div>
@@ -438,24 +481,22 @@ function SprintPlanningPage() {
                 </div>
 
                 {sprintTasks.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">No tasks in this sprint yet.</p>
+                  <p className="text-sm text-muted-foreground py-4 text-center">No tasks in this sprint yet.</p>
                 ) : (
-                  <div className="space-y-2">
+                  <div className="space-y-2 max-h-[400px] overflow-y-auto">
                     {sprintTasks.map((task) => (
-                      <div key={task.id} className="flex items-start gap-3 rounded-lg border p-3 bg-muted/50">
+                      <div key={task.id} className="flex items-center justify-between gap-3 rounded-lg border p-3 bg-muted/50">
                         <div className="flex-1 min-w-0">
-                          <p className="font-medium text-sm">{task.title}</p>
+                          <p className="font-medium text-sm truncate">{task.title}</p>
                           <div className="flex flex-wrap items-center gap-2 mt-1">
-                            <span className="inline-flex items-center rounded-full bg-blue-50 px-2 py-1 text-xs font-medium text-blue-700">
+                            <span className="inline-flex items-center rounded-full bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-700">
                               {task.status}
                             </span>
-                            <span className="inline-flex items-center rounded-full bg-yellow-50 px-2 py-1 text-xs font-medium text-yellow-700">
+                            <span className="inline-flex items-center rounded-full bg-yellow-50 px-2 py-0.5 text-xs font-medium text-yellow-700">
                               {task.priority}
                             </span>
                             {task.estimated_hours && (
-                              <span className="text-xs text-muted-foreground">
-                                {task.estimated_hours}h
-                              </span>
+                              <span className="text-xs text-muted-foreground">{task.estimated_hours}h</span>
                             )}
                           </div>
                         </div>
@@ -463,7 +504,7 @@ function SprintPlanningPage() {
                           size="sm"
                           variant="ghost"
                           onClick={() => handleRemoveTaskFromSprint(task.id)}
-                          className="h-6 w-6 p-0"
+                          className="h-8 w-8 p-0 text-muted-foreground hover:text-destructive"
                         >
                           <Trash2 className="h-4 w-4" />
                         </Button>
@@ -474,9 +515,9 @@ function SprintPlanningPage() {
               </div>
             </>
           ) : (
-            <div className="rounded-lg border bg-card p-6 text-center">
-              <Target className="h-12 w-12 text-muted-foreground mx-auto mb-2" />
-              <p className="text-muted-foreground">Select a sprint to view details and manage tasks.</p>
+            <div className="rounded-lg border bg-card p-12 text-center flex flex-col items-center justify-center">
+              <Target className="h-12 w-12 text-muted-foreground mb-3" />
+              <p className="text-muted-foreground text-sm">Select a sprint to view details and manage tasks.</p>
             </div>
           )}
         </div>
@@ -486,21 +527,27 @@ function SprintPlanningPage() {
       <div className="rounded-lg border bg-card p-4 space-y-4">
         <h4 className="font-semibold">Backlog ({backlogTasks.length} tasks)</h4>
         {backlogTasks.length === 0 ? (
-          <p className="text-sm text-muted-foreground">All tasks are assigned to sprints!</p>
+          <div className="text-center py-6">
+            <p className="text-sm text-muted-foreground">No tasks available to assign.</p>
+          </div>
         ) : (
           <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
             {backlogTasks.map((task) => (
-              <div key={task.id} className="rounded-lg border p-3 bg-muted/50 hover:bg-muted transition-colors">
-                <p className="font-medium text-sm truncate">{task.title}</p>
-                <div className="flex flex-wrap items-center gap-2 mt-2">
-                  <span className="inline-flex items-center rounded-full bg-blue-50 px-2 py-1 text-xs font-medium text-blue-700">
-                    {task.status}
-                  </span>
-                  <span className="inline-flex items-center rounded-full bg-yellow-50 px-2 py-1 text-xs font-medium text-yellow-700">
-                    {task.priority}
-                  </span>
+              <div key={task.id} className="rounded-lg border p-3 bg-muted/30 hover:bg-muted/70 transition-colors flex flex-col justify-between">
+                <p className="font-medium text-sm truncate mb-2">{task.title}</p>
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div className="flex gap-1.5">
+                    <span className="inline-flex items-center rounded-full bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-700">
+                      {task.status}
+                    </span>
+                    <span className="inline-flex items-center rounded-full bg-yellow-50 px-2 py-0.5 text-xs font-medium text-yellow-700">
+                      {task.priority}
+                    </span>
+                  </div>
                   {task.estimated_hours && (
-                    <span className="text-xs text-muted-foreground">{task.estimated_hours}h</span>
+                    <span className="text-xs font-medium bg-secondary px-2 py-0.5 rounded text-muted-foreground">
+                      {task.estimated_hours}h
+                    </span>
                   )}
                 </div>
               </div>
@@ -511,3 +558,7 @@ function SprintPlanningPage() {
     </div>
   );
 }
+
+export const Route = createFileRoute("/_app/sprint-planning")({
+  component: SprintPlanningPage,
+});

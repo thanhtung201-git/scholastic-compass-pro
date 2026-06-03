@@ -60,16 +60,34 @@ export function TaskDetailModal({ taskId, open, onOpenChange, userId }: TaskDeta
   };
 
   const handleToggleTimer = async () => {
-    if (activeTimerId) {
-      // Stop timer
-      await supabase.from("task_time_logs").update({ end_time: new Date().toISOString() }).eq("id", activeTimerId);
-      setActiveTimerId(null);
-    } else {
-      // Start timer
-      const { data } = await supabase.from("task_time_logs").insert([{ task_id: taskId, user_id: userId, start_time: new Date().toISOString() }]).select().single();
-      if (data) setActiveTimerId(data.id);
+    try {
+      const now = new Date().toISOString();
+      if (activeTimerId) {
+        // Stop timer for this task
+        await supabase.from("task_time_logs").update({ end_time: now }).eq("id", activeTimerId);
+        setActiveTimerId(null);
+      } else {
+        // Stop any other running timers for this user (prevent overlapping timers)
+        await supabase.from("task_time_logs").update({ end_time: now }).eq("user_id", userId).is("end_time", null);
+
+        // Start timer for this task
+        const { data, error } = await supabase
+          .from("task_time_logs")
+          .insert([{ task_id: taskId, user_id: userId, start_time: now }])
+          .select()
+          .single();
+
+        if (error) {
+          console.error("Failed to start timer:", error);
+        } else if (data) {
+          setActiveTimerId(data.id);
+        }
+      }
+    } catch (err) {
+      console.error("Error toggling timer:", err);
+    } finally {
+      fetchTaskData();
     }
-    fetchTaskData();
   };
 
   if (!task) return null;
