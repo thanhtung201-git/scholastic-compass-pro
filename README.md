@@ -47,7 +47,7 @@ The login and registration gateway for the system.
 | Function | Description |
 |---|---|
 | **Sign In** | Log in with email and password (default: 'password123'). Redirects to `/dashboard` on success. |
-| **Role Selection (Sign Up)** | Choose from all system roles: Admin, Academic Staff, Accountant, Director, Finance Manager, Academic Manager, HR Manager, HR Staff, Marketing Manager, Marketing Staff. |
+| **Sign Up** | Admin creates accounts for users (reference 6.1). |
 
 > After sign-in, the system fetches the user's profile from the `users` table. If a Teacher role is detected, a teacher profile is automatically synced to the `teachers` table.
 
