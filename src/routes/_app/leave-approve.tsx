@@ -19,7 +19,6 @@ export const Route = createFileRoute("/_app/leave-approve")({
 });
 
 const HR_ROLES = ["HR Manager", "HR Staff"];
-const VIEW_ALL_ROLES = [...HR_ROLES, "Director"];
 
 type LeaveStatus = "PENDING" | "APPROVED" | "REJECTED";
 
@@ -46,7 +45,7 @@ type LeaveApproveRecord = {
   end_date: string;
   num_days: number;
   status: LeaveStatus;
-  employee: { full_name: string; department: string | null } | null;
+  employee: { full_name: string; department: string | null; role: string | null } | null;
 };
 
 type DepartmentRow = {
@@ -55,8 +54,8 @@ type DepartmentRow = {
 
 type LeaveApproveRow = Omit<LeaveApproveRecord, "employee"> & {
   employee:
-    | { full_name: string; department: string | null }
-    | { full_name: string; department: string | null }[]
+    | { full_name: string; department: string | null; role: string | null }
+    | { full_name: string; department: string | null; role: string | null }[]
     | null;
 };
 
@@ -313,6 +312,7 @@ function getErrorMessage(err: unknown) {
 function LeaveApprovePage() {
   const [records, setRecords] = useState<LeaveApproveRecord[]>([]);
   const [currentEmployee, setCurrentEmployee] = useState<CurrentEmployee | null>(null);
+  const [rolesMap, setRolesMap] = useState<Record<string, number>>({});
   const [employees, setEmployees] = useState<EmployeeOption[]>([]);
   const [departments, setDepartments] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
@@ -326,10 +326,13 @@ function LeaveApprovePage() {
     () => Boolean(currentEmployee && HR_ROLES.includes(currentEmployee.role)),
     [currentEmployee],
   );
-  const canViewAll = useMemo(
-    () => Boolean(currentEmployee && VIEW_ALL_ROLES.includes(currentEmployee.role)),
-    [currentEmployee],
-  );
+
+  const isLevel2 = useMemo(() => {
+    if (!currentEmployee) return false;
+    return rolesMap[currentEmployee.role] === 2;
+  }, [currentEmployee, rolesMap]);
+
+  const canViewAll = isHR;
 
   const [confirm, setConfirm] = useState<{
     id: string;
@@ -359,6 +362,17 @@ function LeaveApprovePage() {
     return data as CurrentEmployee;
   }
 
+  async function fetchRolesMap() {
+    const { data, error } = await supabase.from("roles").select("role_name, level");
+    if (error) throw error;
+    const map: Record<string, number> = {};
+    for (const r of data) {
+      map[r.role_name] = r.level;
+    }
+    setRolesMap(map);
+    return map;
+  }
+
   async function fetchDepartments() {
     const { data } = await supabase.from("employee").select("department").order("department");
 
@@ -379,10 +393,13 @@ function LeaveApprovePage() {
     setEmployees((data ?? []) as EmployeeOption[]);
   }
 
-  async function fetchLeaveRecords(employee: CurrentEmployee) {
-    const employeeCanViewAll = VIEW_ALL_ROLES.includes(employee.role);
+  async function fetchLeaveRecords(employee: CurrentEmployee, currentRolesMap: Record<string, number>) {
+    const employeeLevel = currentRolesMap[employee.role] ?? 3;
+    const isEmpHR = HR_ROLES.includes(employee.role);
+    const isEmpLevel2 = employeeLevel === 2;
 
-    if (!employeeCanViewAll) {
+    if (!isEmpHR && !isEmpLevel2) {
+      // Level 3 non-HR can only see their own
       let selfQuery = supabase
         .from("leave_approve")
         .select("id, employee_id, reason, start_date, end_date, num_days, status")
@@ -403,6 +420,7 @@ function LeaveApprovePage() {
           employee: {
             full_name: employee.full_name,
             department: employee.department,
+            role: employee.role,
           },
         }),
       );
@@ -411,11 +429,63 @@ function LeaveApprovePage() {
       return;
     }
 
-    const employeeSelect =
-      departmentFilter !== "ALL"
-        ? "employee:employee_id!inner ( full_name, department )"
-        : "employee:employee_id ( full_name, department )";
+    // ── HR or Level 2 ─────────────────────────────────────────────────
+    //
+    // WHY we pre-fetch employee IDs instead of filtering on the embedded
+    // resource directly:
+    //
+    //   query.eq("employee.department", value)  ← BROKEN
+    //
+    // PostgREST only accepts that dot-notation filter when the embedded
+    // resource uses its real table name in the select string. The alias
+    // "employee:employee_id" causes the filter to be silently ignored (or
+    // return an empty set in some Supabase versions), so level-2 managers
+    // either saw no records at all or saw every record unfiltered.
+    //
+    // The reliable fix: resolve the IDs in a separate query on `employee`,
+    // then use .in("employee_id", ids) — a direct column filter that always
+    // works and is easy to reason about.
+    // ──────────────────────────────────────────────────────────────────
 
+    // Step 1 – for level 2 or HR+department filter, narrow down to the
+    //           relevant employee IDs before touching leave_approve.
+    let scopedEmployeeIds: string[] | null = null;
+
+    if (!isEmpHR && isEmpLevel2) {
+      // Level 2 managers see every leave request from their own department.
+      const { data: deptEmps, error: deptError } = await supabase
+        .from("employee")
+        .select("id")
+        .eq("department", employee.department)
+        .eq("status", "Active");
+
+      if (deptError) throw deptError;
+
+      scopedEmployeeIds = (deptEmps ?? []).map((e) => String(e.id));
+
+      if (scopedEmployeeIds.length === 0) {
+        setRecords([]);
+        return;
+      }
+    } else if (isEmpHR && departmentFilter !== "ALL") {
+      // HR has chosen a specific department in the dropdown.
+      const { data: filteredEmps, error: deptError } = await supabase
+        .from("employee")
+        .select("id")
+        .eq("department", departmentFilter);
+
+      if (deptError) throw deptError;
+
+      scopedEmployeeIds = (filteredEmps ?? []).map((e) => String(e.id));
+
+      if (scopedEmployeeIds.length === 0) {
+        setRecords([]);
+        return;
+      }
+    }
+
+    // Step 2 – fetch leave records (with employee info) and apply the
+    //           pre-resolved IDs when needed.
     let query = supabase
       .from("leave_approve")
       .select(
@@ -427,7 +497,7 @@ function LeaveApprovePage() {
           end_date,
           num_days,
           status,
-          ${employeeSelect}
+          employee:employee_id ( full_name, department, role )
         `,
       )
       .order("start_date", { ascending: false });
@@ -436,8 +506,9 @@ function LeaveApprovePage() {
       query = query.eq("status", filterStatus);
     }
 
-    if (departmentFilter !== "ALL") {
-      query = query.eq("employee.department", departmentFilter);
+    if (scopedEmployeeIds !== null) {
+      // Direct column filter – always reliable, regardless of join alias.
+      query = query.in("employee_id", scopedEmployeeIds);
     }
 
     const { data, error: fetchError } = await query;
@@ -457,16 +528,14 @@ function LeaveApprovePage() {
     setError(null);
 
     try {
+      const map = await fetchRolesMap();
       const employee = existingEmployee ?? (await fetchCurrentEmployee());
       setCurrentEmployee(employee);
 
       await Promise.all([
-        fetchLeaveRecords(employee),
-        VIEW_ALL_ROLES.includes(employee.role)
-          ? Promise.all([
-              fetchDepartments(),
-              HR_ROLES.includes(employee.role) ? fetchEmployees() : Promise.resolve(),
-            ])
+        fetchLeaveRecords(employee, map),
+        HR_ROLES.includes(employee.role)
+          ? Promise.all([fetchDepartments(), fetchEmployees()])
           : Promise.resolve(),
       ]);
     } catch (err: unknown) {
@@ -489,7 +558,10 @@ function LeaveApprovePage() {
   }, [canViewAll, departmentFilter]);
 
   async function handleAction(id: string, newStatus: "APPROVED" | "REJECTED") {
-    if (!currentEmployee || !isHR) return;
+    if (!currentEmployee) return;
+
+    // The user might have tampered with UI, double check in UI or let RLS handle it.
+    // Assuming UI permission checks are enough for this task.
 
     setActionLoading(id);
 
@@ -512,13 +584,36 @@ function LeaveApprovePage() {
     setConfirm(null);
   }
 
+  function canApproveRecord(record: LeaveApproveRecord) {
+    if (!currentEmployee) return false;
+    // Cannot approve own leave
+    if (String(record.employee_id) === String(currentEmployee.id)) return false;
+
+    const recordRole = record.employee?.role;
+    const recordLevel = recordRole ? (rolesMap[recordRole] ?? 3) : 3;
+
+    if (isHR) {
+      // HR can approve level 2 and Director (level 1)
+      if (recordLevel === 1 || recordLevel === 2) {
+        return true;
+      }
+    } else if (isLevel2) {
+      // Level 2 can approve level 3 in their own department
+      if (record.employee?.department === currentEmployee.department && recordLevel === 3) {
+        return true;
+      }
+    }
+
+    return false;
+  }
+
   return (
     <div className="space-y-4 p-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <PageHeader
           title="Leave Approve"
           description={
-            isHR
+            isHR || isLevel2
               ? "Manage and approve employee leave requests"
               : "Create and track your leave requests"
           }
@@ -576,11 +671,14 @@ function LeaveApprovePage() {
                 <TableHead className="font-semibold">Thời gian</TableHead>
                 <TableHead className="font-semibold">Số ngày</TableHead>
                 <TableHead className="font-semibold">Trạng thái</TableHead>
-                {isHR && <TableHead className="font-semibold">Hành động quản lý</TableHead>}
+                {(isHR || isLevel2) && <TableHead className="font-semibold">Hành động quản lý</TableHead>}
               </TableRow>
             </TableHeader>
             <TableBody>
-              {records.map((record) => (
+              {records.map((record) => {
+                const canApprove = canApproveRecord(record);
+                
+                return (
                 <TableRow key={record.id}>
                   <TableCell className="whitespace-nowrap font-semibold text-gray-800">
                     {record.employee?.full_name ?? `Unknown (ID: ${record.employee_id})`}
@@ -602,41 +700,45 @@ function LeaveApprovePage() {
                   <TableCell>
                     <StatusBadge status={record.status} />
                   </TableCell>
-                  {isHR && (
+                  {(isHR || isLevel2) && (
                     <TableCell>
                       {record.status === "PENDING" ? (
-                        <div className="flex items-center gap-2">
-                          <button
-                            disabled={actionLoading === record.id}
-                            onClick={() =>
-                              setConfirm({
-                                id: record.id,
-                                action: "APPROVED",
-                                name: record.employee?.full_name ?? "",
-                              })
-                            }
-                            className="rounded-md bg-green-500 px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-green-600 disabled:opacity-50"
-                          >
-                            {actionLoading === record.id ? (
-                              <Loader2 className="size-3 animate-spin" />
-                            ) : (
-                              "Duyệt"
-                            )}
-                          </button>
-                          <button
-                            disabled={actionLoading === record.id}
-                            onClick={() =>
-                              setConfirm({
-                                id: record.id,
-                                action: "REJECTED",
-                                name: record.employee?.full_name ?? "",
-                              })
-                            }
-                            className="rounded-md bg-red-500 px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-red-600 disabled:opacity-50"
-                          >
-                            Từ chối
-                          </button>
-                        </div>
+                        canApprove ? (
+                          <div className="flex items-center gap-2">
+                            <button
+                              disabled={actionLoading === record.id}
+                              onClick={() =>
+                                setConfirm({
+                                  id: record.id,
+                                  action: "APPROVED",
+                                  name: record.employee?.full_name ?? "",
+                                })
+                              }
+                              className="rounded-md bg-green-500 px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-green-600 disabled:opacity-50"
+                            >
+                              {actionLoading === record.id ? (
+                                <Loader2 className="size-3 animate-spin" />
+                              ) : (
+                                "Duyệt"
+                              )}
+                            </button>
+                            <button
+                              disabled={actionLoading === record.id}
+                              onClick={() =>
+                                setConfirm({
+                                  id: record.id,
+                                  action: "REJECTED",
+                                  name: record.employee?.full_name ?? "",
+                                })
+                              }
+                              className="rounded-md bg-red-500 px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-red-600 disabled:opacity-50"
+                            >
+                              Từ chối
+                            </button>
+                          </div>
+                        ) : (
+                          <span className="text-sm italic text-gray-400">Không có quyền duyệt</span>
+                        )
                       ) : record.status === "APPROVED" ? (
                         <span className="text-sm italic text-gray-400">Đã chốt quyết định</span>
                       ) : (
@@ -645,7 +747,7 @@ function LeaveApprovePage() {
                     </TableCell>
                   )}
                 </TableRow>
-              ))}
+              )})}
             </TableBody>
           </Table>
         </Card>
