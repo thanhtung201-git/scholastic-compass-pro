@@ -1,90 +1,33 @@
 import { Link, useRouterState } from "@tanstack/react-router";
 import { useState } from "react";
-import {
-  LayoutDashboard, Users, ClipboardList, GraduationCap,
-  Receipt, ClipboardCheck, Banknote, Shield, FileText, CheckSquare, ChevronDown, CreditCard, Wallet,
-  Kanban, ChartGantt, CalendarClock, UsersRound, MessagesSquare, Timer, type LucideIcon,
-} from "lucide-react";
+import { ChevronDown, GraduationCap } from "lucide-react";
 import {
   Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGroupLabel,
   SidebarHeader, SidebarMenu, SidebarMenuButton, SidebarMenuItem, useSidebar,
 } from "@/components/ui/sidebar";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { NAV_SECTIONS } from "@/lib/nav-config";
+import { useDatabase } from "@/hooks/use-database";
 import type { Role } from "@/lib/types";
-
-interface NavItem { 
-  title: string; 
-  url: string; 
-  icon: LucideIcon; 
-  roles: Role[]; 
-}
-
-interface NavSection {
-  label: string;
-  items: (NavItem | NavItemWithChildren)[];
-}
-
-interface NavItemWithChildren extends NavItem {
-  children?: NavItem[];
-}
-
-// Navigation sections organized by category
-const navSections: NavSection[] = [
-  {
-    label: "Core",
-    items: [
-      { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard, roles: ["Admin", "Director"] },
-    ]
-  },
-  {
-    label: "Finance & Accounting",
-    items: [
-      { title: "Tuition Invoices", url: "/tuition", icon: Receipt, roles: ["Accountant","Admin","Director","Student"] },
-      { title: "Payments", url: "/accounting/payments", icon: CreditCard, roles: ["Accountant","Admin","Director"] },
-      { title: "Expenses", url: "/accounting/expenses", icon: Wallet, roles: ["Accountant","Admin","Director"] },
-      { title: "Balance Sheet", url: "/accounting/balance-sheet", icon: FileText, roles: ["Accountant","Admin","Director","Finance Manager"] },
-      { title: "Payroll", url: "/payroll", icon: Banknote, roles: ["Accountant","Academic Staff","Director","Teacher","Admin"] },
-      { title: "Salary", url: "/salary", icon: Banknote, roles: ["Accountant","Admin","Director","Finance Manager"] },
-    ]
-  },
-  {
-    label: "Human Resources",
-    items: [
-      { title: "Teachers", url: "/teachers", icon: Users, roles: ["Admin", "Director", "HR Manager", "HR Staff"] },
-      { title: "Employees", url: "/employees", icon: Users, roles: ["Admin", "Director", "HR Manager", "HR Staff"] },
-      { title: "Attendance Tracking", url: "/attendance-tracking", icon: ClipboardCheck, roles: ["Admin", "Director", "HR Manager", "HR Staff"] },
-      { title: "Leave Approve", url: "/leave-approve", icon: ClipboardList, roles: ["Admin", "Director", "HR Manager", "HR Staff"] },
-    ]
-  },
-  {
-    label: "Project Management",
-    items: [
-      { title: "Task Assignment", url: "/task-assignment", icon: CheckSquare, roles: ["Admin", "Director", "HR Manager", "HR Staff", "Academic Manager", "Academic Staff", "Finance Manager", "Accountant", "Marketing Manager", "Marketing Staff"] },
-      { title: "Kanban Board", url: "/kanban-board", icon: Kanban, roles: ["Admin", "Director", "HR Manager", "HR Staff", "Academic Manager", "Academic Staff", "Finance Manager", "Accountant", "Marketing Manager", "Marketing Staff"] },
-      { title: "Gantt Chart", url: "/gantt-chart", icon: ChartGantt, roles: ["Admin", "Director", "HR Manager", "HR Staff", "Academic Manager", "Academic Staff", "Finance Manager", "Accountant", "Marketing Manager", "Marketing Staff"] },
-      { title: "Sprint Planning", url: "/sprint-planning", icon: CalendarClock, roles: ["Admin", "Director", "HR Manager", "HR Staff", "Academic Manager", "Academic Staff", "Finance Manager", "Accountant", "Marketing Manager", "Marketing Staff"] },
-      { title: "Workload View", url: "/workload-view", icon: UsersRound, roles: ["Admin", "Director", "HR Manager", "HR Staff", "Academic Manager", "Academic Staff", "Finance Manager", "Accountant", "Marketing Manager", "Marketing Staff"] },
-      { title: "Comments & Threads", url: "/comments-threads", icon: MessagesSquare, roles: ["Admin", "Director", "HR Manager", "HR Staff", "Academic Manager", "Academic Staff", "Finance Manager", "Accountant", "Marketing Manager", "Marketing Staff"] },
-      { title: "Time Tracking", url: "/time-tracking", icon: Timer, roles: ["Admin", "Director", "HR Manager", "HR Staff", "Academic Manager", "Academic Staff", "Finance Manager", "Accountant", "Marketing Manager", "Marketing Staff"] },
-    ]
-  },
-  {
-    label: "Administration",
-    items: [
-      { title: "User Management", url: "/users", icon: Shield, roles: ["Admin"] },
-      { title: "Audit Logs", url: "/audit", icon: FileText, roles: ["Admin"] },
-    ]
-  }
-];
 
 export function AppSidebar({ role }: { role: Role }) {
   const { state } = useSidebar();
   const collapsed = state === "collapsed";
   const path = useRouterState({ select: (r) => r.location.pathname });
   const [openMenus, setOpenMenus] = useState<Record<string, boolean>>({});
+  const { moduleAccess } = useDatabase();
 
   const toggleMenu = (title: string) => {
     setOpenMenus((prev) => ({ ...prev, [title]: !prev[title] }));
+  };
+
+  /** Decide if a nav item is visible to the current role */
+  const isVisible = (item: { key?: string; roles: Role[]; alwaysVisible?: boolean }) => {
+    if (item.alwaysVisible) return item.roles.includes(role);
+    const key = item.key ?? "";
+    // Use DB-stored access list if available; fall back to nav-config defaults
+    const allowed: Role[] = (key && moduleAccess && moduleAccess[key]) ? (moduleAccess[key] as Role[]) : item.roles;
+    return allowed.includes(role);
   };
 
   return (
@@ -103,27 +46,24 @@ export function AppSidebar({ role }: { role: Role }) {
         </div>
       </SidebarHeader>
       <SidebarContent>
-        {navSections.map((section) => {
-          const visibleItems = section.items.filter((item) => item.roles.includes(role));
+        {NAV_SECTIONS.map((section) => {
+          const visibleItems = section.items.filter(isVisible);
           if (visibleItems.length === 0) return null;
-          
+
           return (
             <SidebarGroup key={section.label}>
               {!collapsed && <SidebarGroupLabel>{section.label}</SidebarGroupLabel>}
               <SidebarGroupContent>
                 <SidebarMenu>
                   {visibleItems.map((item) => {
-                    const hasChildren = "children" in item && item.children;
+                    const active = path === item.url || path.startsWith(item.url + "/");
                     const isOpen = openMenus[item.title];
-                    const active = path === item.url;
-                    
-                    if (hasChildren && item.children) {
-                      const visibleChildren = item.children.filter((child) =>
-                        child.roles.includes(role)
-                      );
 
+                    // Items with sub-nav use collapsible (Marketing section pattern)
+                    const hasChildren = "children" in item && Array.isArray((item as any).children);
+                    if (hasChildren && (item as any).children?.length > 0) {
+                      const visibleChildren = ((item as any).children as any[]).filter(isVisible);
                       if (visibleChildren.length === 0) {
-                        // If no visible children, render as regular item
                         return (
                           <SidebarMenuItem key={item.url}>
                             <SidebarMenuButton asChild isActive={active}>
@@ -135,42 +75,28 @@ export function AppSidebar({ role }: { role: Role }) {
                           </SidebarMenuItem>
                         );
                       }
-
                       return (
-                        <Collapsible
-                          key={item.title}
-                          open={isOpen}
-                          onOpenChange={() => toggleMenu(item.title)}
-                        >
+                        <Collapsible key={item.title} open={isOpen} onOpenChange={() => toggleMenu(item.title)}>
                           <SidebarMenuItem>
                             <CollapsibleTrigger asChild>
-                              <SidebarMenuButton
-                                className="flex items-center justify-between"
-                              >
+                              <SidebarMenuButton className="flex items-center justify-between">
                                 <div className="flex items-center gap-2">
                                   <item.icon className="size-4" />
                                   {!collapsed && <span>{item.title}</span>}
                                 </div>
                                 {!collapsed && (
-                                  <ChevronDown
-                                    className={`size-4 transition-transform ${
-                                      isOpen ? "rotate-180" : ""
-                                    }`}
-                                  />
+                                  <ChevronDown className={`size-4 transition-transform ${isOpen ? "rotate-180" : ""}`} />
                                 )}
                               </SidebarMenuButton>
                             </CollapsibleTrigger>
                             <CollapsibleContent>
                               <SidebarMenu className="pl-8 gap-2">
-                                {visibleChildren.map((child) => {
+                                {visibleChildren.map((child: any) => {
                                   const childActive = path === child.url;
                                   return (
                                     <SidebarMenuItem key={child.url}>
                                       <SidebarMenuButton asChild isActive={childActive}>
-                                        <Link
-                                          to={child.url}
-                                          className="flex items-center gap-2"
-                                        >
+                                        <Link to={child.url} className="flex items-center gap-2">
                                           <child.icon className="size-4" />
                                           {!collapsed && <span>{child.title}</span>}
                                         </Link>
@@ -185,7 +111,7 @@ export function AppSidebar({ role }: { role: Role }) {
                       );
                     }
 
-                    // Regular item without children
+                    // Regular flat item
                     return (
                       <SidebarMenuItem key={item.url}>
                         <SidebarMenuButton asChild isActive={active}>

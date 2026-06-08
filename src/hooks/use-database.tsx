@@ -5,6 +5,7 @@ import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
 import * as mock from "@/lib/mock-data";
 import type { Role } from "@/lib/types";
+import { useAuth } from "@/lib/auth-context";
 
 interface DbContextType {
   branches: any[];
@@ -27,9 +28,12 @@ interface DbContextType {
   attendanceTracking: any[];
   auditLogs: any[];
   users: any[];
+  departments: any[];
+  dbRoles: any[];
+  moduleAccess: Record<string, Role[]>;
   loading: boolean;
   seeding: boolean;
-  
+
   // Mutations
   toggleUserStatus: (id: string, currentStatus: string) => Promise<void>;
   updateUserRole: (id: string, role: Role) => Promise<void>;
@@ -48,19 +52,32 @@ interface DbContextType {
   deleteSchedule: (id: string) => Promise<void>;
   deleteStudent: (id: string) => Promise<void>;
   deleteUser: (id: string) => Promise<void>;
- addTuitionPayment: (payment: any) => Promise<void>;
+  addTuitionPayment: (payment: any) => Promise<void>;
   addExpense: (expense: any) => Promise<void>;
   updateExpense: (id: string, expense: any) => Promise<void>;
   deleteExpense: (id: string) => Promise<void>;
   addPayrollSlip: (slip: any) => Promise<void>;
   updatePayrollSlipStatus: (id: string, status: string) => Promise<void>;
   inviteUser: (data: any) => Promise<void>;
+  // System Setup
+  updateModuleAccess: (access: Record<string, Role[]>) => Promise<void>;
+  addDepartment: (name: string) => Promise<void>;
+  renameDepartment: (id: string, name: string) => Promise<void>;
+  deleteDepartment: (id: string) => Promise<void>;
+  addDbRole: (roleName: string, departmentName: string, level: number) => Promise<void>;
+  renameDbRole: (id: string, roleName: string, departmentName: string, level: number) => Promise<void>;
+  deleteDbRole: (id: string) => Promise<void>;
+  addBranch: (name: string) => Promise<void>;
+  renameBranch: (id: string, name: string) => Promise<void>;
+  deleteBranch: (id: string) => Promise<void>;
+  currentUser: any;
 }
 const DbContext = createContext<DbContextType | null>(null);
 
 export function DatabaseProvider({ children }: { children: ReactNode }) {
   const queryClient = useQueryClient();
   const [seeding, setSeeding] = useState(false);
+  const { user: authUser } = useAuth();
 
   // Queries
   const { data: branches = [], isLoading: loadBranches } = useQuery({
@@ -249,6 +266,35 @@ export function DatabaseProvider({ children }: { children: ReactNode }) {
     }
   });
 
+  const { data: departments = [], isLoading: loadDepartments } = useQuery({
+    queryKey: ["departments"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("department").select("*").order("department_name");
+      if (error) return [];
+      return data;
+    }
+  });
+
+  const { data: dbRoles = [], isLoading: loadDbRoles } = useQuery({
+    queryKey: ["db_roles"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("roles").select("*").order("level", { ascending: true, nullsFirst: false }).order("role_name");
+      if (error) return [];
+      return data;
+    }
+  });
+
+  const { data: systemSettings = [], isLoading: loadSystemSettings } = useQuery({
+    queryKey: ["system_settings"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("system_settings").select("*");
+      if (error) return [];
+      return data;
+    }
+  });
+
+  const moduleAccess: Record<string, Role[]> = (systemSettings.find((s: any) => s.key === "module_access")?.value ?? {}) as Record<string, Role[]>;
+
   const loading =
     loadBranches ||
     loadTeachers || loadEmployees ||
@@ -269,6 +315,9 @@ export function DatabaseProvider({ children }: { children: ReactNode }) {
     loadAttendanceTracking ||
     loadAudit ||
     loadUsers ||
+    loadDepartments ||
+    loadDbRoles ||
+    loadSystemSettings ||
     seeding;
 
   // Auto-seed function if tables are empty
@@ -919,6 +968,81 @@ export function DatabaseProvider({ children }: { children: ReactNode }) {
     }
   });
 
+  // ─── System Settings Mutations ───────────────────────────────────────────────
+
+  const updateModuleAccess = async (access: Record<string, Role[]>) => {
+    const { error } = await supabase.from("system_settings").upsert(
+      { key: "module_access", value: access, updated_at: new Date().toISOString() },
+      { onConflict: "key" }
+    );
+    if (error) throw error;
+    queryClient.invalidateQueries({ queryKey: ["system_settings"] });
+    toast.success("Menu access settings saved!");
+  };
+
+  const addDepartment = async (name: string) => {
+    const { error } = await supabase.from("department").insert([{ id: crypto.randomUUID(), department_name: name }]);
+    if (error) throw error;
+    queryClient.invalidateQueries({ queryKey: ["departments"] });
+    toast.success("Department added!");
+  };
+
+  const renameDepartment = async (id: string, name: string) => {
+    const { error } = await supabase.from("department").update({ department_name: name }).eq("id", id);
+    if (error) throw error;
+    queryClient.invalidateQueries({ queryKey: ["departments"] });
+    toast.success("Department renamed!");
+  };
+
+  const deleteDepartment = async (id: string) => {
+    const { error } = await supabase.from("department").delete().eq("id", id);
+    if (error) throw error;
+    queryClient.invalidateQueries({ queryKey: ["departments"] });
+    toast.success("Department deleted!");
+  };
+
+  const addDbRole = async (roleName: string, departmentName: string, level: number) => {
+    const { error } = await supabase.from("roles").insert([{ id: crypto.randomUUID(), role_name: roleName, department_name: departmentName, level }]);
+    if (error) throw error;
+    queryClient.invalidateQueries({ queryKey: ["db_roles"] });
+    toast.success("Role added!");
+  };
+
+  const renameDbRole = async (id: string, roleName: string, departmentName: string, level: number) => {
+    const { error } = await supabase.from("roles").update({ role_name: roleName, department_name: departmentName, level }).eq("id", id);
+    if (error) throw error;
+    queryClient.invalidateQueries({ queryKey: ["db_roles"] });
+    toast.success("Role updated!");
+  };
+
+  const deleteDbRole = async (id: string) => {
+    const { error } = await supabase.from("roles").delete().eq("id", id);
+    if (error) throw error;
+    queryClient.invalidateQueries({ queryKey: ["db_roles"] });
+    toast.success("Role deleted!");
+  };
+
+  const addBranch = async (name: string) => {
+    const { error } = await supabase.from("branches").insert([{ id: crypto.randomUUID(), name }]);
+    if (error) throw error;
+    queryClient.invalidateQueries({ queryKey: ["branches"] });
+    toast.success("Branch added!");
+  };
+
+  const renameBranch = async (id: string, name: string) => {
+    const { error } = await supabase.from("branches").update({ name }).eq("id", id);
+    if (error) throw error;
+    queryClient.invalidateQueries({ queryKey: ["branches"] });
+    toast.success("Branch renamed!");
+  };
+
+  const deleteBranch = async (id: string) => {
+    const { error } = await supabase.from("branches").delete().eq("id", id);
+    if (error) throw error;
+    queryClient.invalidateQueries({ queryKey: ["branches"] });
+    toast.success("Branch deleted!");
+  };
+
   const toggleUserStatus = async (id: string, currentStatus: string) => {
     const status = currentStatus === "Active" ? "Blocked" : "Active";
     await toggleUserStatusMutation.mutateAsync({ id, status });
@@ -1044,6 +1168,9 @@ export function DatabaseProvider({ children }: { children: ReactNode }) {
     await inviteUserMutation.mutateAsync(data);
   };
 
+  // currentUser: the currently logged-in user record from the users table
+  const currentUser = authUser ? users.find((u) => u.id === authUser.id) ?? null : null;
+
   return (
     <DbContext.Provider
       value={{
@@ -1066,8 +1193,12 @@ export function DatabaseProvider({ children }: { children: ReactNode }) {
         attendanceTracking,
         auditLogs,
         users,
+        departments,
+        dbRoles,
+        moduleAccess,
         loading,
         seeding,
+        currentUser,
         toggleUserStatus,
         updateUserRole,
         addStudent,
@@ -1091,7 +1222,17 @@ export function DatabaseProvider({ children }: { children: ReactNode }) {
         deleteExpense,
         addPayrollSlip,
         updatePayrollSlipStatus,
-        inviteUser
+        inviteUser,
+        updateModuleAccess,
+        addDepartment,
+        renameDepartment,
+        deleteDepartment,
+        addDbRole,
+        renameDbRole,
+        deleteDbRole,
+        addBranch,
+        renameBranch,
+        deleteBranch,
       }}
     >
       {children}

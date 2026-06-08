@@ -18,6 +18,7 @@ import { Route as AppTuitionRouteImport } from './routes/_app/tuition'
 import { Route as AppTimeTrackingRouteImport } from './routes/_app/time-tracking'
 import { Route as AppTeachersRouteImport } from './routes/_app/teachers'
 import { Route as AppTaskAssignmentRouteImport } from './routes/_app/task-assignment'
+import { Route as AppSystemSetupRouteImport } from './routes/_app/system-setup'
 import { Route as AppStudentsRouteImport } from './routes/_app/students'
 import { Route as AppSprintPlanningRouteImport } from './routes/_app/sprint-planning'
 import { Route as AppScheduleRouteImport } from './routes/_app/schedule'
@@ -91,6 +92,11 @@ const AppTeachersRoute = AppTeachersRouteImport.update({
 const AppTaskAssignmentRoute = AppTaskAssignmentRouteImport.update({
   id: '/task-assignment',
   path: '/task-assignment',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppSystemSetupRoute = AppSystemSetupRouteImport.update({
+  id: '/system-setup',
+  path: '/system-setup',
   getParentRoute: () => AppRoute,
 } as any)
 const AppStudentsRoute = AppStudentsRouteImport.update({
@@ -267,6 +273,7 @@ export interface FileRoutesByFullPath {
   '/schedule': typeof AppScheduleRoute
   '/sprint-planning': typeof AppSprintPlanningRoute
   '/students': typeof AppStudentsRoute
+  '/system-setup': typeof AppSystemSetupRoute
   '/task-assignment': typeof AppTaskAssignmentRoute
   '/teachers': typeof AppTeachersRoute
   '/time-tracking': typeof AppTimeTrackingRoute
@@ -307,6 +314,7 @@ export interface FileRoutesByTo {
   '/schedule': typeof AppScheduleRoute
   '/sprint-planning': typeof AppSprintPlanningRoute
   '/students': typeof AppStudentsRoute
+  '/system-setup': typeof AppSystemSetupRoute
   '/task-assignment': typeof AppTaskAssignmentRoute
   '/teachers': typeof AppTeachersRoute
   '/time-tracking': typeof AppTimeTrackingRoute
@@ -349,6 +357,7 @@ export interface FileRoutesById {
   '/_app/schedule': typeof AppScheduleRoute
   '/_app/sprint-planning': typeof AppSprintPlanningRoute
   '/_app/students': typeof AppStudentsRoute
+  '/_app/system-setup': typeof AppSystemSetupRoute
   '/_app/task-assignment': typeof AppTaskAssignmentRoute
   '/_app/teachers': typeof AppTeachersRoute
   '/_app/time-tracking': typeof AppTimeTrackingRoute
@@ -391,6 +400,7 @@ export interface FileRouteTypes {
     | '/schedule'
     | '/sprint-planning'
     | '/students'
+    | '/system-setup'
     | '/task-assignment'
     | '/teachers'
     | '/time-tracking'
@@ -431,6 +441,7 @@ export interface FileRouteTypes {
     | '/schedule'
     | '/sprint-planning'
     | '/students'
+    | '/system-setup'
     | '/task-assignment'
     | '/teachers'
     | '/time-tracking'
@@ -472,6 +483,7 @@ export interface FileRouteTypes {
     | '/_app/schedule'
     | '/_app/sprint-planning'
     | '/_app/students'
+    | '/_app/system-setup'
     | '/_app/task-assignment'
     | '/_app/teachers'
     | '/_app/time-tracking'
@@ -560,6 +572,13 @@ declare module '@tanstack/react-router' {
       path: '/task-assignment'
       fullPath: '/task-assignment'
       preLoaderRoute: typeof AppTaskAssignmentRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/system-setup': {
+      id: '/_app/system-setup'
+      path: '/system-setup'
+      fullPath: '/system-setup'
+      preLoaderRoute: typeof AppSystemSetupRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/students': {
@@ -840,6 +859,7 @@ interface AppRouteChildren {
   AppScheduleRoute: typeof AppScheduleRoute
   AppSprintPlanningRoute: typeof AppSprintPlanningRoute
   AppStudentsRoute: typeof AppStudentsRoute
+  AppSystemSetupRoute: typeof AppSystemSetupRoute
   AppTaskAssignmentRoute: typeof AppTaskAssignmentRoute
   AppTeachersRoute: typeof AppTeachersRoute
   AppTimeTrackingRoute: typeof AppTimeTrackingRoute
@@ -871,6 +891,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppScheduleRoute: AppScheduleRoute,
   AppSprintPlanningRoute: AppSprintPlanningRoute,
   AppStudentsRoute: AppStudentsRoute,
+  AppSystemSetupRoute: AppSystemSetupRoute,
   AppTaskAssignmentRoute: AppTaskAssignmentRoute,
   AppTeachersRoute: AppTeachersRoute,
   AppTimeTrackingRoute: AppTimeTrackingRoute,
