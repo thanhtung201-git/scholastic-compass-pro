@@ -7,7 +7,8 @@ import { Switch } from "@/components/ui/switch";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useDatabase } from "@/hooks/use-database";
 import { useAuth } from "@/lib/auth-context";
-import { Loader2, Trash2, ChevronLeft, ChevronRight, Upload, Download, FileSpreadsheet } from "lucide-react";
+import { Loader2, Trash2, ChevronLeft, ChevronRight, Upload, Download, FileSpreadsheet, X } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ALL_ROLES, type Role } from "@/lib/types";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogDescription } from "@/components/ui/dialog";
@@ -624,7 +625,11 @@ function ImportUsersDialog({ onImportSuccess }: { onImportSuccess: () => void })
 // ─── Users Page ───────────────────────────────────────────────────────────────
 
 function UsersPage() {
-  const { users, loading, branches, currentUser, toggleUserStatus, updateUserRole, addAuditLog, deleteUser } = useDatabase();
+  const {
+    users, loading, branches, currentUser,
+    toggleUserStatus, updateUserRole, addAuditLog, deleteUser,
+    bulkUpdateUserRole, bulkSetUserStatus, bulkDeleteUsers,
+  } = useDatabase();
   const [page, setPage] = useState(1);
   const pageSize = 15;
   
@@ -633,6 +638,9 @@ function UsersPage() {
   const [departmentFilter, setDepartmentFilter] = useState("All");
   const [roleMappings, setRoleMappings] = useState<Record<string, string>>({});
   const [departments, setDepartments] = useState<string[]>([]);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkRole, setBulkRole] = useState<Role>("Academic Staff");
+  const [bulkLoading, setBulkLoading] = useState(false);
 
   useEffect(() => {
     async function loadOptions() {
@@ -668,6 +676,112 @@ function UsersPage() {
   useEffect(() => {
     setPage(1); // Reset page on filter change
   }, [searchTerm, roleFilter, departmentFilter]);
+
+  useEffect(() => {
+    setSelectedIds(new Set());
+  }, [page, searchTerm, roleFilter, departmentFilter]);
+
+  const isAdmin = currentUser?.role === "Admin";
+  const selectableOnPage = paginatedUsers.filter((u) => u.id !== currentUser?.id);
+  const allPageSelected =
+    selectableOnPage.length > 0 && selectableOnPage.every((u) => selectedIds.has(u.id));
+  const somePageSelected =
+    selectableOnPage.some((u) => selectedIds.has(u.id)) && !allPageSelected;
+  const selectedCount = selectedIds.size;
+
+  const toggleSelect = (id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const toggleSelectAllOnPage = () => {
+    if (allPageSelected) {
+      setSelectedIds((prev) => {
+        const next = new Set(prev);
+        selectableOnPage.forEach((u) => next.delete(u.id));
+        return next;
+      });
+    } else {
+      setSelectedIds((prev) => {
+        const next = new Set(prev);
+        selectableOnPage.forEach((u) => next.add(u.id));
+        return next;
+      });
+    }
+  };
+
+  const clearSelection = () => setSelectedIds(new Set());
+
+  const getSelectedUsers = () => users.filter((u) => selectedIds.has(u.id));
+
+  const handleBulkRoleChange = async () => {
+    const ids = Array.from(selectedIds);
+    if (!ids.length || !currentUser) return;
+    setBulkLoading(true);
+    try {
+      await bulkUpdateUserRole(ids, bulkRole);
+      const names = getSelectedUsers().map((u) => u.name).join(", ");
+      await addAuditLog(
+        currentUser.name,
+        `Bulk changed role to ${bulkRole} for ${ids.length} user(s): ${names}`,
+        ids.join(", "),
+        "security"
+      );
+      clearSelection();
+    } catch (err: any) {
+      toast.error(err.message ?? "Failed to update roles");
+    } finally {
+      setBulkLoading(false);
+    }
+  };
+
+  const handleBulkSetStatus = async (status: "Active" | "Blocked") => {
+    const ids = Array.from(selectedIds);
+    if (!ids.length || !currentUser) return;
+    setBulkLoading(true);
+    try {
+      await bulkSetUserStatus(ids, status);
+      const action = status === "Active" ? "Bulk activated" : "Bulk blocked";
+      const names = getSelectedUsers().map((u) => u.name).join(", ");
+      await addAuditLog(
+        currentUser.name,
+        `${action} ${ids.length} user account(s): ${names}`,
+        ids.join(", "),
+        "security"
+      );
+      clearSelection();
+    } catch (err: any) {
+      toast.error(err.message ?? "Failed to update status");
+    } finally {
+      setBulkLoading(false);
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    const ids = Array.from(selectedIds);
+    if (!ids.length || !currentUser) return;
+    const names = getSelectedUsers().map((u) => u.name).join(", ");
+    if (!confirm(`Delete ${ids.length} selected user(s)?\n\n${names}\n\nThis cannot be undone.`)) return;
+    setBulkLoading(true);
+    try {
+      await bulkDeleteUsers(ids);
+      await addAuditLog(
+        currentUser.name,
+        `Bulk deleted ${ids.length} user(s): ${names}`,
+        ids.join(", "),
+        "security"
+      );
+      clearSelection();
+    } catch (err: any) {
+      toast.error(err.message ?? "Failed to delete users");
+    } finally {
+      setBulkLoading(false);
+    }
+  };
 
   const toggle = async (id: string, currentStatus: string, email: string) => {
     await toggleUserStatus(id, currentStatus);
@@ -732,9 +846,60 @@ function UsersPage() {
       </Card>
 
       <Card className="p-0 overflow-hidden">
+        {isAdmin && selectedCount > 0 && (
+          <div className="flex flex-wrap items-center gap-3 border-b bg-muted/40 px-4 py-3">
+            <span className="text-sm font-medium">
+              {selectedCount} selected
+            </span>
+            <div className="flex flex-wrap items-center gap-2">
+              <Select value={bulkRole} onValueChange={(v) => setBulkRole(v as Role)}>
+                <SelectTrigger className="h-8 w-[160px] text-xs">
+                  <SelectValue placeholder="Select role" />
+                </SelectTrigger>
+                <SelectContent>
+                  {ALL_ROLES.map((r) => (
+                    <SelectItem key={r} value={r} className="text-xs">{r}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Button size="sm" variant="secondary" disabled={bulkLoading} onClick={handleBulkRoleChange}>
+                Apply Role
+              </Button>
+              <Button size="sm" variant="outline" disabled={bulkLoading} onClick={() => handleBulkSetStatus("Active")}>
+                Activate
+              </Button>
+              <Button size="sm" variant="outline" disabled={bulkLoading} onClick={() => handleBulkSetStatus("Blocked")}>
+                Deactivate
+              </Button>
+              <Button size="sm" variant="destructive" disabled={bulkLoading} onClick={handleBulkDelete}>
+                <Trash2 className="mr-1 size-3.5" />
+                Delete
+              </Button>
+            </div>
+            <Button
+              size="sm"
+              variant="ghost"
+              className="ml-auto"
+              disabled={bulkLoading}
+              onClick={clearSelection}
+            >
+              <X className="mr-1 size-3.5" />
+              Clear
+            </Button>
+          </div>
+        )}
         <Table>
           <TableHeader>
             <TableRow>
+              {isAdmin && (
+                <TableHead className="w-10">
+                  <Checkbox
+                    checked={allPageSelected ? true : somePageSelected ? "indeterminate" : false}
+                    onCheckedChange={toggleSelectAllOnPage}
+                    aria-label="Select all on page"
+                  />
+                </TableHead>
+              )}
               <TableHead>Name</TableHead>
               <TableHead>Email</TableHead>
               <TableHead>Role</TableHead>
@@ -746,7 +911,17 @@ function UsersPage() {
           </TableHeader>
           <TableBody>
             {paginatedUsers.map((u) => (
-              <TableRow key={u.id}>
+              <TableRow key={u.id} data-state={selectedIds.has(u.id) ? "selected" : undefined}>
+                {isAdmin && (
+                  <TableCell>
+                    <Checkbox
+                      checked={selectedIds.has(u.id)}
+                      onCheckedChange={() => toggleSelect(u.id)}
+                      disabled={u.id === currentUser?.id}
+                      aria-label={`Select ${u.name}`}
+                    />
+                  </TableCell>
+                )}
                 <TableCell className="font-medium">{u.name}</TableCell>
                 <TableCell className="text-xs text-muted-foreground">{u.email}</TableCell>
                 <TableCell>

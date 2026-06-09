@@ -37,6 +37,9 @@ interface DbContextType {
   // Mutations
   toggleUserStatus: (id: string, currentStatus: string) => Promise<void>;
   updateUserRole: (id: string, role: Role) => Promise<void>;
+  bulkUpdateUserRole: (ids: string[], role: Role) => Promise<void>;
+  bulkSetUserStatus: (ids: string[], status: string) => Promise<void>;
+  bulkDeleteUsers: (ids: string[]) => Promise<void>;
   addStudent: (student: any) => Promise<void>;
   updateStudent: (id: string, student: any) => Promise<void>;
   createClass: (cls: any) => Promise<void>;
@@ -1091,6 +1094,30 @@ export function DatabaseProvider({ children }: { children: ReactNode }) {
     await updateUserRoleMutation.mutateAsync({ id, role });
   };
 
+  const bulkUpdateUserRole = async (ids: string[], role: Role) => {
+    if (!ids.length) return;
+    const { error } = await supabase.from("users").update({ role }).in("id", ids);
+    if (error) throw error;
+    queryClient.invalidateQueries({ queryKey: ["users"] });
+    toast.success(`Updated role for ${ids.length} user${ids.length === 1 ? "" : "s"}.`);
+  };
+
+  const bulkSetUserStatus = async (ids: string[], status: string) => {
+    if (!ids.length) return;
+    const { error } = await supabase.from("users").update({ status }).in("id", ids);
+    if (error) throw error;
+    queryClient.invalidateQueries({ queryKey: ["users"] });
+    toast.success(`Updated status for ${ids.length} user${ids.length === 1 ? "" : "s"}.`);
+  };
+
+  const bulkDeleteUsers = async (ids: string[]) => {
+    if (!ids.length) return;
+    const { error } = await supabase.from("users").delete().in("id", ids);
+    if (error) throw error;
+    queryClient.invalidateQueries({ queryKey: ["users"] });
+    toast.success(`Deleted ${ids.length} user${ids.length === 1 ? "" : "s"}.`);
+  };
+
   const addStudent = async (student: any) => {
     await addStudentMutation.mutateAsync(student);
   };
@@ -1201,6 +1228,9 @@ export function DatabaseProvider({ children }: { children: ReactNode }) {
         currentUser,
         toggleUserStatus,
         updateUserRole,
+        bulkUpdateUserRole,
+        bulkSetUserStatus,
+        bulkDeleteUsers,
         addStudent,
         updateStudent,
         createClass,
