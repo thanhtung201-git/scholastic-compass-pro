@@ -1,6 +1,6 @@
 # MCNA ERP — Setup & User Guide
 
-**MCNA ERP** (Scholastic Compass Pro) is a multi-branch academic center management platform. It replaces spreadsheet workflows with a single system for students, classes, schedules, tuition, payroll, HR, marketing, and internal project management.
+**MCNA ERP** is a multi-branch management platform. It replaces spreadsheet workflows with a single system for students, classes, schedules, tuition, payroll, HR, marketing, and internal project management.
 
 This guide is written for someone new to the project: how to install it, how the modules connect, and how to use each function.
 
