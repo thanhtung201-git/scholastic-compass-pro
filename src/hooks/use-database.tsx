@@ -30,7 +30,7 @@ interface DbContextType {
   users: any[];
   departments: any[];
   dbRoles: any[];
-  moduleAccess: Record<string, Role[]>;
+  moduleAccess: Record<string, string[]>;
   loading: boolean;
   seeding: boolean;
 
@@ -60,7 +60,7 @@ interface DbContextType {
   updatePayrollSlipStatus: (id: string, status: string) => Promise<void>;
   inviteUser: (data: any) => Promise<void>;
   // System Setup
-  updateModuleAccess: (access: Record<string, Role[]>) => Promise<void>;
+  updateModuleAccess: (access: Record<string, string[]>) => Promise<void>;
   addDepartment: (name: string) => Promise<void>;
   renameDepartment: (id: string, name: string) => Promise<void>;
   deleteDepartment: (id: string) => Promise<void>;
@@ -293,7 +293,7 @@ export function DatabaseProvider({ children }: { children: ReactNode }) {
     }
   });
 
-  const moduleAccess: Record<string, Role[]> = (systemSettings.find((s: any) => s.key === "module_access")?.value ?? {}) as Record<string, Role[]>;
+  const moduleAccess: Record<string, string[]> = (systemSettings.find((s: any) => s.key === "module_access")?.value ?? {}) as Record<string, string[]>;
 
   const loading =
     loadBranches ||
@@ -970,7 +970,7 @@ export function DatabaseProvider({ children }: { children: ReactNode }) {
 
   // ─── System Settings Mutations ───────────────────────────────────────────────
 
-  const updateModuleAccess = async (access: Record<string, Role[]>) => {
+  const updateModuleAccess = async (access: Record<string, string[]>) => {
     const { error } = await supabase.from("system_settings").upsert(
       { key: "module_access", value: access, updated_at: new Date().toISOString() },
       { onConflict: "key" }

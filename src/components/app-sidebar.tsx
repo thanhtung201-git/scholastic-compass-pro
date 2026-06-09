@@ -1,6 +1,7 @@
 import { Link, useRouterState } from "@tanstack/react-router";
 import { useState } from "react";
-import { ChevronDown, GraduationCap } from "lucide-react";
+import { ChevronDown } from "lucide-react";
+import logo from "@/assets/logo.png";
 import {
   Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGroupLabel,
   SidebarHeader, SidebarMenu, SidebarMenuButton, SidebarMenuItem, useSidebar,
@@ -26,7 +27,7 @@ export function AppSidebar({ role }: { role: Role }) {
     if (item.alwaysVisible) return item.roles.includes(role);
     const key = item.key ?? "";
     // Use DB-stored access list if available; fall back to nav-config defaults
-    const allowed: Role[] = (key && moduleAccess && moduleAccess[key]) ? (moduleAccess[key] as Role[]) : item.roles;
+    const allowed: string[] = (key && moduleAccess && moduleAccess[key]) ? moduleAccess[key] : item.roles;
     return allowed.includes(role);
   };
 
@@ -34,13 +35,13 @@ export function AppSidebar({ role }: { role: Role }) {
     <Sidebar collapsible="icon">
       <SidebarHeader>
         <div className="flex items-center gap-2 px-2 py-1.5">
-          <div className="size-8 rounded-lg bg-primary text-primary-foreground flex items-center justify-center shrink-0">
-            <GraduationCap className="size-5" />
+          <div className="size-8 rounded-lg overflow-hidden flex items-center justify-center shrink-0 bg-white">
+            <img src={logo} alt="MCNA ERP" className="size-7 object-contain" />
           </div>
           {!collapsed && (
             <div className="min-w-0">
-              <div className="font-semibold text-sm truncate">MCNAEdu ERP</div>
-              <div className="text-[10px] text-muted-foreground truncate">Academic ERP</div>
+              <div className="font-semibold text-sm truncate">MCNA ERP</div>
+              <div className="text-[10px] text-muted-foreground truncate">MCNA ERP Management System</div>
             </div>
           )}
         </div>

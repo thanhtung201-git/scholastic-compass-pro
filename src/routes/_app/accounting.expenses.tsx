@@ -545,6 +545,36 @@ function CashVoucherPage() {
     return Number.isNaN(date.getTime()) ? "" : date.toISOString().slice(0, 10);
   };
 
+  const handleDownloadSample = async () => {
+    const xlsx = await import("xlsx");
+    const sampleData = [
+      {
+        voucher_type: "Chi",
+        voucher_date: new Date().toISOString().slice(0, 10),
+        payer_payee_name: "Nguyễn Văn A",
+        reason: "Chi phí văn phòng phẩm",
+        amount: 500000,
+        debit_account: "642",
+        credit_account: "111",
+        department: "Kế toán",
+      },
+    ];
+    const ws = xlsx.utils.json_to_sheet(sampleData);
+    ws["!cols"] = [
+      { wch: 15 },
+      { wch: 15 },
+      { wch: 25 },
+      { wch: 30 },
+      { wch: 15 },
+      { wch: 15 },
+      { wch: 15 },
+      { wch: 20 },
+    ];
+    const wb = xlsx.utils.book_new();
+    xlsx.utils.book_append_sheet(wb, ws, "Sample");
+    xlsx.writeFile(wb, "sample_import_vouchers.xlsx");
+  };
+
   const handleImportFile = async (file?: File) => {
     if (!file) return;
     setImportResult("");
@@ -555,11 +585,17 @@ function CashVoucherPage() {
     const rawRows = xlsx.utils.sheet_to_json<Record<string, any>>(sheet, { defval: "" });
     const parsed = rawRows.map((row, index) => {
       const date = parseExcelDate(row.voucher_date, xlsx);
-      const amount = Number(row.amount);
+      const rawAmount = row.amount;
+      const amount = Number(rawAmount);
       const errors = [
-        row.voucher_type === "Thu" || row.voucher_type === "Chi" ? "" : "voucher_type phải là Thu hoặc Chi",
-        date ? "" : "voucher_date không hợp lệ",
-        amount > 0 ? "" : "amount phải lớn hơn 0",
+        row.voucher_type === "Thu" || row.voucher_type === "Chi" ? "" : "Cột 'voucher_type' sai kiểu dữ liệu (phải là Thu hoặc Chi)",
+        date ? "" : "Cột 'voucher_date' sai kiểu dữ liệu (ngày tháng không hợp lệ)",
+        row.payer_payee_name ? "" : "Cột 'payer_payee_name' không được để trống",
+        row.reason ? "" : "Cột 'reason' không được để trống",
+        rawAmount !== "" && rawAmount !== undefined && !isNaN(amount) ? (amount > 0 ? "" : "Cột 'amount' phải lớn hơn 0") : "Cột 'amount' sai kiểu dữ liệu (phải là số nguyên)",
+        row.debit_account ? "" : "Cột 'debit_account' không được để trống",
+        row.credit_account ? "" : "Cột 'credit_account' không được để trống",
+        row.department && !departments.includes(row.department) ? `Cột 'department' có giá trị '${row.department}' không tồn tại trong hệ thống` : "",
       ].filter(Boolean);
       return {
         rowNumber: index + 2,
@@ -578,6 +614,9 @@ function CashVoucherPage() {
   };
 
   const confirmImport = async () => {
+    if (importRows.some((row) => row.errors.length > 0)) {
+      return toast.error("Vui lòng sửa các dòng bị lỗi trong file trước khi import.");
+    }
     const validRows = importRows.filter((row) => row.errors.length === 0);
     if (!validRows.length) return toast.error("Không có dòng hợp lệ để import.");
     const counters: Record<string, number> = {};
@@ -883,6 +922,15 @@ function CashVoucherPage() {
             <DialogTitle>Import Excel</DialogTitle>
             <DialogDescription>File .xlsx cần có các cột: voucher_type, voucher_date, payer_payee_name, reason, amount, debit_account, credit_account, department.</DialogDescription>
           </DialogHeader>
+          <div className="flex items-center justify-between rounded-md border p-4 bg-muted/30 mb-2">
+            <div className="text-sm">
+              <p className="font-medium">Chưa có file mẫu?</p>
+              <p className="text-muted-foreground">Tải file mẫu với đúng định dạng và kiểu dữ liệu chuẩn (ngày tháng, số tiền).</p>
+            </div>
+            <Button variant="outline" size="sm" onClick={handleDownloadSample}>
+              <Download className="mr-2 size-4" /> Tải file mẫu
+            </Button>
+          </div>
           <div className="rounded-lg border border-dashed p-6 text-center">
             <Upload className="mx-auto mb-3 size-8 text-muted-foreground" />
             <Input type="file" accept=".xlsx" onChange={(event) => handleImportFile(event.target.files?.[0])} />
@@ -918,7 +966,7 @@ function CashVoucherPage() {
           {importResult && <div className="text-sm text-muted-foreground">{importResult}</div>}
           <DialogFooter>
             <Button variant="outline" onClick={() => setImportOpen(false)}>Đóng</Button>
-            <Button onClick={confirmImport} disabled={!importRows.length}>Xác nhận import</Button>
+            <Button onClick={confirmImport} disabled={!importRows.length || importRows.some((r) => r.errors.length > 0)}>Xác nhận import</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

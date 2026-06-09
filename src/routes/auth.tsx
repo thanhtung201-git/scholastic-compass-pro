@@ -1,6 +1,7 @@
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { GraduationCap, Loader2 } from "lucide-react";
+import { Loader2 } from "lucide-react";
+import logo from "@/assets/logo.png";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -34,11 +35,11 @@ function AuthPage() {
       <div className="hidden lg:flex flex-col justify-between p-12 text-primary-foreground" style={{ background: "var(--gradient-primary)" }}>
         <div className="flex items-center gap-3">
           <div className="size-10 rounded-xl bg-white/15 backdrop-blur flex items-center justify-center">
-            <GraduationCap className="size-6" />
+            <img src={logo} alt="MCNA ERP" className="size-8 object-contain" />
           </div>
           <div>
-            <div className="font-semibold tracking-tight text-lg">MCNAEdu ERP</div>
-            <div className="text-xs text-white/70">Academic ERP Suite</div>
+            <div className="font-semibold tracking-tight text-lg">MCNA ERP</div>
+            <div className="text-xs text-white/70">MCNA ERP</div>
           </div>
         </div>
         <div className="space-y-6">
@@ -62,17 +63,17 @@ function AuthPage() {
             ))}
           </div>
         </div>
-        <div className="text-xs text-white/60">© 2026 MCNAEdu. All rights reserved.</div>
+        <div className="text-xs text-white/60">© 2026 MCNA. All rights reserved.</div>
       </div>
 
       {/* Right panel — Sign In only */}
       <div className="flex items-center justify-center p-6 lg:p-12 bg-background">
         <div className="w-full max-w-md space-y-6">
           <div className="lg:hidden flex items-center gap-2">
-            <div className="size-9 rounded-lg bg-primary flex items-center justify-center text-primary-foreground">
-              <GraduationCap className="size-5" />
+            <div className="size-9 rounded-lg bg-white flex items-center justify-center">
+              <img src={logo} alt="MCNA ERP" className="size-7 object-contain" />
             </div>
-            <div className="font-semibold">MCNAEdu ERP</div>
+            <div className="font-semibold">MCNA ERP</div>
           </div>
 
           <div>

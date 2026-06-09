@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { PageHeader } from "@/components/page-header";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -8,23 +8,310 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { Loader2, Plus, Pencil, Trash2, Save, Settings2, Building2, Briefcase, GitBranch, ShieldCheck, Eye, EyeOff, MoreHorizontal, Check, CheckSquare, X } from "lucide-react";
+import { Loader2, Plus, Pencil, Trash2, Save, Settings2, Building2, Briefcase, GitBranch, ShieldCheck, Eye, EyeOff, MoreHorizontal, Check, CheckSquare, X, Upload, Download, FileSpreadsheet } from "lucide-react";
 import { useDatabase } from "@/hooks/use-database";
 import { useAuth } from "@/lib/auth-context";
 import { NAV_SECTIONS } from "@/lib/nav-config";
-import { ALL_ROLES, type Role } from "@/lib/types";
+import { ALL_ROLES } from "@/lib/types";
+import { toast } from "sonner";
+import { supabase } from "@/lib/supabase";
+
+// ─── Import Departments Dialog ────────────────────────────────────────────────
+
+function ImportDepartmentsDialog({ onSuccess }: { onSuccess: () => void }) {
+  const [open, setOpen] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [rows, setRows] = useState<any[]>([]);
+
+  const handleDownload = async () => {
+    const xlsx = await import("xlsx");
+    const ws = xlsx.utils.json_to_sheet([{ department_name: "Academic" }, { department_name: "Finance" }]);
+    ws["!cols"] = [{ wch: 30 }];
+    const wb = xlsx.utils.book_new();
+    xlsx.utils.book_append_sheet(wb, ws, "Departments");
+    xlsx.writeFile(wb, "sample_departments.xlsx");
+  };
+
+  const handleFile = async (file?: File) => {
+    if (!file) return;
+    const xlsx = await import("xlsx");
+    const buf = await file.arrayBuffer();
+    const wb = xlsx.read(buf, { type: "array" });
+    const raw = xlsx.utils.sheet_to_json<Record<string, any>>(wb.Sheets[wb.SheetNames[0]], { defval: "" });
+    const parsed = raw.map((r, i) => ({
+      rowNumber: i + 2,
+      department_name: String(r.department_name || "").trim(),
+      errors: [!String(r.department_name || "").trim() ? "Column 'department_name' cannot be empty" : ""].filter(Boolean),
+    }));
+    setRows(parsed);
+  };
+
+  const handleConfirm = async () => {
+    if (rows.some(r => r.errors.length)) return toast.error("Fix all errors before importing.");
+    setLoading(true);
+    try {
+      for (const row of rows) {
+        const { error } = await supabase.from("department").insert([{ id: crypto.randomUUID(), department_name: row.department_name }]);
+        if (error) throw new Error(`[Row ${row.rowNumber}] ${error.message}`);
+      }
+      toast.success(`Imported ${rows.length} department(s).`);
+      onSuccess();
+      setRows([]);
+      setOpen(false);
+    } catch (e: any) {
+      toast.error(e.message);
+    } finally { setLoading(false); }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) setRows([]); }}>
+      <Button variant="outline" size="sm" className="gap-2" onClick={() => setOpen(true)}>
+        <FileSpreadsheet className="size-4" /> Import Excel
+      </Button>
+      <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>Import Departments</DialogTitle>
+          <DialogDescription>File must have column: <code>department_name</code></DialogDescription>
+        </DialogHeader>
+        <div className="flex items-center justify-between rounded-md border p-3 bg-muted/30">
+          <p className="text-sm text-muted-foreground">Download the sample template first.</p>
+          <Button variant="outline" size="sm" onClick={handleDownload}><Download className="mr-2 size-4" />Sample</Button>
+        </div>
+        <div className="rounded-lg border border-dashed p-5 text-center">
+          <Upload className="mx-auto mb-2 size-7 text-muted-foreground" />
+          <Input type="file" accept=".xlsx" onChange={(e) => handleFile(e.target.files?.[0])} disabled={loading} />
+        </div>
+        {rows.length > 0 && (
+          <Table>
+            <TableHeader><TableRow><TableHead>Row</TableHead><TableHead>Department Name</TableHead><TableHead>Errors</TableHead></TableRow></TableHeader>
+            <TableBody>
+              {rows.map(r => (
+                <TableRow key={r.rowNumber} className={r.errors.length ? "bg-red-50" : ""}>
+                  <TableCell>{r.rowNumber}</TableCell>
+                  <TableCell>{r.department_name}</TableCell>
+                  <TableCell className="text-red-700 text-xs">{r.errors.join("; ")}</TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        )}
+        <DialogFooter>
+          <Button variant="outline" onClick={() => setOpen(false)} disabled={loading}>Cancel</Button>
+          <Button onClick={handleConfirm} disabled={loading || !rows.length || rows.some(r => r.errors.length)}>
+            {loading && <Loader2 className="mr-2 size-4 animate-spin" />}
+            {loading ? "Importing..." : "Confirm Import"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// ─── Import Roles Dialog ──────────────────────────────────────────────────────
+
+function ImportRolesDialog({ onSuccess, departments }: { onSuccess: () => void; departments: any[] }) {
+  const [open, setOpen] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [rows, setRows] = useState<any[]>([]);
+
+  const deptNames = departments.map((d: any) => d.department_name);
+
+  const handleDownload = async () => {
+    const xlsx = await import("xlsx");
+    const ws = xlsx.utils.json_to_sheet([
+      { role_name: "Academic Staff", department_name: deptNames[0] || "Academic", level: 3 },
+    ]);
+    ws["!cols"] = [{ wch: 25 }, { wch: 25 }, { wch: 10 }];
+    const wb = xlsx.utils.book_new();
+    xlsx.utils.book_append_sheet(wb, ws, "Roles");
+    xlsx.writeFile(wb, "sample_roles.xlsx");
+  };
+
+  const handleFile = async (file?: File) => {
+    if (!file) return;
+    const xlsx = await import("xlsx");
+    const buf = await file.arrayBuffer();
+    const wb = xlsx.read(buf, { type: "array" });
+    const raw = xlsx.utils.sheet_to_json<Record<string, any>>(wb.Sheets[wb.SheetNames[0]], { defval: "" });
+    const parsed = raw.map((r, i) => {
+      const roleName = String(r.role_name || "").trim();
+      const deptName = String(r.department_name || "").trim();
+      const level = parseInt(String(r.level)) || 0;
+      const errors = [
+        !roleName ? "Column 'role_name' cannot be empty" : "",
+        !deptName ? "Column 'department_name' cannot be empty" : deptNames.includes(deptName) ? "" : `Department '${deptName}' does not exist in the system — create it first`,
+        !level || level < 1 ? "Column 'level' must be a number ≥ 1" : "",
+      ].filter(Boolean);
+      return { rowNumber: i + 2, role_name: roleName, department_name: deptName, level, errors };
+    });
+    setRows(parsed);
+  };
+
+  const handleConfirm = async () => {
+    if (rows.some(r => r.errors.length)) return toast.error("Fix all errors before importing.");
+    setLoading(true);
+    try {
+      for (const row of rows) {
+        const { error } = await supabase.from("roles").insert([{ id: crypto.randomUUID(), role_name: row.role_name, department_name: row.department_name, level: row.level }]);
+        if (error) throw new Error(`[Row ${row.rowNumber}] ${error.message}`);
+      }
+      toast.success(`Imported ${rows.length} role(s).`);
+      onSuccess();
+      setRows([]);
+      setOpen(false);
+    } catch (e: any) {
+      toast.error(e.message);
+    } finally { setLoading(false); }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) setRows([]); }}>
+      <Button variant="outline" size="sm" className="gap-2" onClick={() => setOpen(true)}>
+        <FileSpreadsheet className="size-4" /> Import Excel
+      </Button>
+      <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>Import Roles</DialogTitle>
+          <DialogDescription>File must have columns: <code>role_name</code>, <code>department_name</code>, <code>level</code>. Department must already exist.</DialogDescription>
+        </DialogHeader>
+        <div className="flex items-center justify-between rounded-md border p-3 bg-muted/30">
+          <p className="text-sm text-muted-foreground">Download the sample template first.</p>
+          <Button variant="outline" size="sm" onClick={handleDownload}><Download className="mr-2 size-4" />Sample</Button>
+        </div>
+        <div className="rounded-lg border border-dashed p-5 text-center">
+          <Upload className="mx-auto mb-2 size-7 text-muted-foreground" />
+          <Input type="file" accept=".xlsx" onChange={(e) => handleFile(e.target.files?.[0])} disabled={loading} />
+        </div>
+        {rows.length > 0 && (
+          <Table>
+            <TableHeader><TableRow><TableHead>Row</TableHead><TableHead>Role</TableHead><TableHead>Department</TableHead><TableHead>Level</TableHead><TableHead>Errors</TableHead></TableRow></TableHeader>
+            <TableBody>
+              {rows.map(r => (
+                <TableRow key={r.rowNumber} className={r.errors.length ? "bg-red-50" : ""}>
+                  <TableCell>{r.rowNumber}</TableCell>
+                  <TableCell>{r.role_name}</TableCell>
+                  <TableCell>{r.department_name}</TableCell>
+                  <TableCell>{r.level}</TableCell>
+                  <TableCell className="text-red-700 text-xs">{r.errors.join("; ")}</TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        )}
+        <DialogFooter>
+          <Button variant="outline" onClick={() => setOpen(false)} disabled={loading}>Cancel</Button>
+          <Button onClick={handleConfirm} disabled={loading || !rows.length || rows.some(r => r.errors.length)}>
+            {loading && <Loader2 className="mr-2 size-4 animate-spin" />}
+            {loading ? "Importing..." : "Confirm Import"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// ─── Import Branches Dialog ───────────────────────────────────────────────────
+
+function ImportBranchesDialog({ onSuccess }: { onSuccess: () => void }) {
+  const [open, setOpen] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [rows, setRows] = useState<any[]>([]);
+
+  const handleDownload = async () => {
+    const xlsx = await import("xlsx");
+    const ws = xlsx.utils.json_to_sheet([{ branch_name: "MCNAEdu — District 1" }, { branch_name: "MCNAEdu — District 7" }]);
+    ws["!cols"] = [{ wch: 35 }];
+    const wb = xlsx.utils.book_new();
+    xlsx.utils.book_append_sheet(wb, ws, "Branches");
+    xlsx.writeFile(wb, "sample_branches.xlsx");
+  };
+
+  const handleFile = async (file?: File) => {
+    if (!file) return;
+    const xlsx = await import("xlsx");
+    const buf = await file.arrayBuffer();
+    const wb = xlsx.read(buf, { type: "array" });
+    const raw = xlsx.utils.sheet_to_json<Record<string, any>>(wb.Sheets[wb.SheetNames[0]], { defval: "" });
+    const parsed = raw.map((r, i) => ({
+      rowNumber: i + 2,
+      branch_name: String(r.branch_name || "").trim(),
+      errors: [!String(r.branch_name || "").trim() ? "Column 'branch_name' cannot be empty" : ""].filter(Boolean),
+    }));
+    setRows(parsed);
+  };
+
+  const handleConfirm = async () => {
+    if (rows.some(r => r.errors.length)) return toast.error("Fix all errors before importing.");
+    setLoading(true);
+    try {
+      for (const row of rows) {
+        const { error } = await supabase.from("branches").insert([{ id: crypto.randomUUID(), name: row.branch_name }]);
+        if (error) throw new Error(`[Row ${row.rowNumber}] ${error.message}`);
+      }
+      toast.success(`Imported ${rows.length} branch(es).`);
+      onSuccess();
+      setRows([]);
+      setOpen(false);
+    } catch (e: any) {
+      toast.error(e.message);
+    } finally { setLoading(false); }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) setRows([]); }}>
+      <Button variant="outline" size="sm" className="gap-2" onClick={() => setOpen(true)}>
+        <FileSpreadsheet className="size-4" /> Import Excel
+      </Button>
+      <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>Import Branches</DialogTitle>
+          <DialogDescription>File must have column: <code>branch_name</code></DialogDescription>
+        </DialogHeader>
+        <div className="flex items-center justify-between rounded-md border p-3 bg-muted/30">
+          <p className="text-sm text-muted-foreground">Download the sample template first.</p>
+          <Button variant="outline" size="sm" onClick={handleDownload}><Download className="mr-2 size-4" />Sample</Button>
+        </div>
+        <div className="rounded-lg border border-dashed p-5 text-center">
+          <Upload className="mx-auto mb-2 size-7 text-muted-foreground" />
+          <Input type="file" accept=".xlsx" onChange={(e) => handleFile(e.target.files?.[0])} disabled={loading} />
+        </div>
+        {rows.length > 0 && (
+          <Table>
+            <TableHeader><TableRow><TableHead>Row</TableHead><TableHead>Branch Name</TableHead><TableHead>Errors</TableHead></TableRow></TableHeader>
+            <TableBody>
+              {rows.map(r => (
+                <TableRow key={r.rowNumber} className={r.errors.length ? "bg-red-50" : ""}>
+                  <TableCell>{r.rowNumber}</TableCell>
+                  <TableCell>{r.branch_name}</TableCell>
+                  <TableCell className="text-red-700 text-xs">{r.errors.join("; ")}</TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        )}
+        <DialogFooter>
+          <Button variant="outline" onClick={() => setOpen(false)} disabled={loading}>Cancel</Button>
+          <Button onClick={handleConfirm} disabled={loading || !rows.length || rows.some(r => r.errors.length)}>
+            {loading && <Loader2 className="mr-2 size-4 animate-spin" />}
+            {loading ? "Importing..." : "Confirm Import"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
 
 export const Route = createFileRoute("/_app/system-setup")({ component: SystemSetupPage });
 
 // ─── Module Access Control Tab ────────────────────────────────────────────────
 
 function ModuleAccessTab() {
-  const { moduleAccess, updateModuleAccess } = useDatabase();
-  const [localAccess, setLocalAccess] = useState<Record<string, Role[]>>({});
+  const { moduleAccess, updateModuleAccess, dbRoles } = useDatabase();
+  const [localAccess, setLocalAccess] = useState<Record<string, string[]>>({});
   const [saving, setSaving] = useState(false);
   const [dirty, setDirty] = useState(false);
 
@@ -35,17 +322,35 @@ function ModuleAccessTab() {
       .map((item) => ({ ...item, section: section.label }))
   );
 
+  // Aggregate roles from DB; include any legacy roles already saved in module_access
+  const allRoleNames = useMemo(() => {
+    const fromDb = dbRoles.map((r: { role_name: string }) => r.role_name);
+    const fromSaved = Object.values(moduleAccess).flat() as string[];
+    const merged = fromDb.length > 0 ? [...fromDb, ...fromSaved] : [...ALL_ROLES, ...fromSaved];
+    return Array.from(new Set(merged)).sort((a, b) => a.localeCompare(b));
+  }, [dbRoles, moduleAccess]);
+
+  // Group roles by department for quick-select bulk actions
+  const departmentGroups = useMemo(() => {
+    const groups: Record<string, string[]> = {};
+    for (const role of dbRoles) {
+      const dept = role.department_name?.trim() || "Unassigned";
+      groups[dept] = groups[dept] ? [...groups[dept], role.role_name] : [role.role_name];
+    }
+    return Object.entries(groups).sort(([a], [b]) => a.localeCompare(b));
+  }, [dbRoles]);
+
   // Initialize local state from DB (or nav-config defaults)
   useEffect(() => {
-    const init: Record<string, Role[]> = {};
+    const init: Record<string, string[]> = {};
     allModules.forEach((item) => {
-      init[item.key] = (moduleAccess[item.key] as Role[]) ?? item.roles;
+      init[item.key] = (moduleAccess[item.key] as string[]) ?? [...item.roles];
     });
     setLocalAccess(init);
     setDirty(false);
   }, [moduleAccess]);
 
-  const toggleRole = (moduleKey: string, role: Role) => {
+  const toggleRole = (moduleKey: string, role: string) => {
     setLocalAccess((prev) => {
       const current = prev[moduleKey] ?? [];
       const updated = current.includes(role)
@@ -56,12 +361,12 @@ function ModuleAccessTab() {
     setDirty(true);
   };
 
-  const setAccess = (moduleKey: string, roles: Role[]) => {
+  const setAccess = (moduleKey: string, roles: string[]) => {
     setLocalAccess((prev) => ({ ...prev, [moduleKey]: roles }));
     setDirty(true);
   };
 
-  const addAccess = (moduleKey: string, roles: Role[]) => {
+  const addAccess = (moduleKey: string, roles: string[]) => {
     setLocalAccess((prev) => {
       const current = prev[moduleKey] ?? [];
       const updated = Array.from(new Set([...current, ...roles]));
@@ -69,13 +374,6 @@ function ModuleAccessTab() {
     });
     setDirty(true);
   };
-
-  // Pre-defined groups for quick selection
-  const groupAdmin: Role[] = ["Admin", "Director"];
-  const groupAcademic: Role[] = ["Academic Manager", "Academic Staff"];
-  const groupFinance: Role[] = ["Finance Manager", "Accountant"];
-  const groupHR: Role[] = ["HR Manager", "HR Staff"];
-  const groupMarketing: Role[] = ["Marketing Manager", "Marketing Staff"];
 
   const handleSave = async () => {
     setSaving(true);
@@ -113,8 +411,8 @@ function ModuleAccessTab() {
 
       {/* Legend */}
       <div className="flex flex-wrap gap-2 items-center text-xs text-muted-foreground">
-        <span className="font-medium">Roles:</span>
-        {ALL_ROLES.map((r) => (
+        <span className="font-medium">Roles ({allRoleNames.length}):</span>
+        {allRoleNames.map((r) => (
           <Badge key={r} variant="outline" className="text-[10px] font-normal">{r}</Badge>
         ))}
       </div>
@@ -132,7 +430,7 @@ function ModuleAccessTab() {
                 <TableHeader>
                   <TableRow className="hover:bg-transparent">
                     <TableHead className="w-48">Menu Item</TableHead>
-                    {ALL_ROLES.map((role) => (
+                    {allRoleNames.map((role) => (
                       <TableHead key={role} className="text-center text-[11px] px-1 whitespace-nowrap">
                         {role.replace(" Manager", " Mgr").replace(" Staff", " Stf")}
                       </TableHead>
@@ -142,8 +440,8 @@ function ModuleAccessTab() {
                 </TableHeader>
                 <TableBody>
                   {section.items.map((item) => {
-                    const allowed = localAccess[item.key] ?? item.roles;
-                    const allChecked = ALL_ROLES.every((r) => allowed.includes(r));
+                    const allowed = localAccess[item.key] ?? [...item.roles];
+                    const allChecked = allRoleNames.length > 0 && allRoleNames.every((r) => allowed.includes(r));
                     const noneChecked = allowed.length === 0;
                     return (
                       <TableRow key={item.key}>
@@ -153,7 +451,7 @@ function ModuleAccessTab() {
                             <span className="text-sm">{item.title}</span>
                           </div>
                         </TableCell>
-                        {ALL_ROLES.map((role) => (
+                        {allRoleNames.map((role) => (
                           <TableCell key={role} className="text-center px-1">
                             <Checkbox
                               id={`${item.key}-${role}`}
@@ -186,29 +484,23 @@ function ModuleAccessTab() {
                               <DropdownMenuContent align="end" className="w-48">
                                 <DropdownMenuLabel className="text-xs">Bulk Actions</DropdownMenuLabel>
                                 <DropdownMenuSeparator />
-                                <DropdownMenuItem onClick={() => setAccess(item.key, ALL_ROLES)}>
+                                <DropdownMenuItem onClick={() => setAccess(item.key, allRoleNames)}>
                                   <CheckSquare className="mr-2 size-3.5" /> Check All
                                 </DropdownMenuItem>
                                 <DropdownMenuItem onClick={() => setAccess(item.key, [])}>
                                   <X className="mr-2 size-3.5" /> Uncheck All
                                 </DropdownMenuItem>
-                                <DropdownMenuSeparator />
-                                <DropdownMenuLabel className="text-xs font-medium py-1">Add Department</DropdownMenuLabel>
-                                <DropdownMenuItem onClick={() => addAccess(item.key, groupAdmin)}>
-                                  <Plus className="mr-2 size-3.5" /> Admin / Director
-                                </DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => addAccess(item.key, groupAcademic)}>
-                                  <Plus className="mr-2 size-3.5" /> Academic
-                                </DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => addAccess(item.key, groupFinance)}>
-                                  <Plus className="mr-2 size-3.5" /> Finance
-                                </DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => addAccess(item.key, groupHR)}>
-                                  <Plus className="mr-2 size-3.5" /> HR
-                                </DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => addAccess(item.key, groupMarketing)}>
-                                  <Plus className="mr-2 size-3.5" /> Marketing
-                                </DropdownMenuItem>
+                                {departmentGroups.length > 0 && (
+                                  <>
+                                    <DropdownMenuSeparator />
+                                    <DropdownMenuLabel className="text-xs font-medium py-1">Add Department</DropdownMenuLabel>
+                                    {departmentGroups.map(([dept, roles]) => (
+                                      <DropdownMenuItem key={dept} onClick={() => addAccess(item.key, roles)}>
+                                        <Plus className="mr-2 size-3.5" /> {dept}
+                                      </DropdownMenuItem>
+                                    ))}
+                                  </>
+                                )}
                               </DropdownMenuContent>
                             </DropdownMenu>
                           </div>
@@ -274,7 +566,7 @@ function DepartmentsTab() {
           <CardDescription className="text-xs">Departments are used when inviting new employees.</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             <Input
               placeholder="e.g. Customer Success"
               value={newName}
@@ -286,6 +578,7 @@ function DepartmentsTab() {
               {adding ? <Loader2 className="size-4 animate-spin" /> : <Plus className="size-4" />}
               Add
             </Button>
+            <ImportDepartmentsDialog onSuccess={() => window.location.reload()} />
           </div>
         </CardContent>
       </Card>
@@ -428,9 +721,12 @@ function RolesTab() {
         <p className="text-sm text-muted-foreground">
           Manage system roles and their department assignments. Roles appear in the user invite form.
         </p>
-        <Button onClick={openAdd} className="gap-2">
-          <Plus className="size-4" /> Add Role
-        </Button>
+        <div className="flex gap-2">
+          <ImportRolesDialog onSuccess={() => window.location.reload()} departments={departments} />
+          <Button onClick={openAdd} className="gap-2">
+            <Plus className="size-4" /> Add Role
+          </Button>
+        </div>
       </div>
 
       <Card className="overflow-hidden">
@@ -572,7 +868,7 @@ function BranchesTab() {
           <CardDescription className="text-xs">Branches are used when assigning users, students, and teachers.</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             <Input
               placeholder="e.g. MCNAEdu — District 7"
               value={newName}
@@ -584,6 +880,7 @@ function BranchesTab() {
               {adding ? <Loader2 className="size-4 animate-spin" /> : <Plus className="size-4" />}
               Add
             </Button>
+            <ImportBranchesDialog onSuccess={() => window.location.reload()} />
           </div>
         </CardContent>
       </Card>
