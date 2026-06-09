@@ -35,7 +35,8 @@ This guide is written for someone new to the project: how to install it, how the
 |---|---|
 | Node.js | 18+ recommended |
 | npm | Comes with Node.js |
-| Supabase project | PostgreSQL database + Auth enabled |
+| Supabase CLI | `npm install -g supabase` — for database schema setup (§1.3) |
+| Supabase project | PostgreSQL database + Auth enabled (source + target) |
 | Git | To clone the repository |
 
 ### 1.1 Clone and install
@@ -61,20 +62,53 @@ These values come from **Supabase Dashboard → Project Settings → API**.
 
 ### 1.3 Set up the database
 
-Run the SQL scripts in your **Supabase SQL Editor** in this order:
+Use the **Supabase CLI** to copy the full schema from an existing source project. This captures tables, constraints, indexes, functions, triggers, and RLS policies — everything.
 
-| Script | Purpose |
-|---|---|
-| Core schema tables | Your main Supabase migration / schema (branches, students, classes, users, etc.) |
-| `seed-database.sql` | Optional demo data (branches, courses, teachers, students, invoices) |
-| `accounting-tables.sql` | Cash vouchers, journal entries, salary receipts |
-| `marketing-tables.sql` | Marketing module (leads, campaigns, sources, promotions) |
-| `PROJECT_MANAGEMENT_SCHEMA.sql` | Tasks, sprints, time logs, comments |
-| `SPRINT_SCHEMA.sql` | Sprint planning tables |
+#### Step 1 — Install & login
 
-For marketing setup details, see `README_MARKETING_SETUP.md`.
+```bash
+npm install -g supabase
+supabase login
+```
 
-> **Auto-seeding:** On first app load, if the `branches` table is empty, the app automatically seeds demo records. You will see a toast: *"First run: Initializing database with demo records..."*
+#### Step 2 — Dump schema from source project
+
+```bash
+# Link to your source project
+supabase link --project-ref <source-project-ref>
+
+# Dump schema only (no data)
+supabase db dump -f schema.sql
+
+# Also dump roles if you have custom roles
+supabase db dump --role-only -f roles.sql
+```
+
+Find `<source-project-ref>` in **Supabase Dashboard → Project Settings → General → Reference ID**.
+
+#### Step 3 — Apply to target project
+
+**Option A — `psql` (recommended for full dumps):**
+
+```bash
+# Connection string: new project → Settings → Database
+psql "postgresql://postgres:[password]@[new-host]:5432/postgres" \
+  -f roles.sql \
+  -f schema.sql
+```
+
+**Option B — Supabase SQL Editor:**
+
+Open the new project's **SQL Editor**, paste the contents of `roles.sql` then `schema.sql`, and click **Run**.
+
+#### Optional — Demo data
+
+If the target database has no rows yet, either:
+
+- Let the app **auto-seed** on first load (empty `branches` table triggers demo data — toast: *"First run: Initializing database with demo records..."*), or
+- Run `seed-database.sql` in the SQL Editor for a fuller demo dataset.
+
+For marketing-specific notes, see `README_MARKETING_SETUP.md`. Legacy per-module SQL files (`accounting-tables.sql`, `marketing-tables.sql`, etc.) remain in the repo as reference but are superseded by the full `schema.sql` dump.
 
 ### 1.4 Run the development server
 
@@ -105,7 +139,7 @@ Follow this sequence when onboarding a new academic center.
 
 ```mermaid
 flowchart TD
-    A[Create Supabase project] --> B[Run SQL schemas]
+    A[Create Supabase project] --> B[Apply schema dump via Supabase CLI]
     B --> C[Create first Admin user in Supabase Auth]
     C --> D[Insert Admin row in users table]
     D --> E[Sign in to MCNA ERP]
@@ -474,7 +508,7 @@ Reuses the **Reception Desk** view:
 
 ### 6.5 Marketing
 
-> Requires `marketing-tables.sql` to be run first. See `README_MARKETING_SETUP.md`.
+> Requires marketing tables in the database (included in a full `schema.sql` dump). See `README_MARKETING_SETUP.md`.
 
 #### Leads
 
@@ -750,7 +784,8 @@ Reuses the **Reception Desk** view:
 | Problem | Solution |
 |---|---|
 | Blank data on first load | Wait for auto-seed toast to finish, or run `seed-database.sql` manually |
-| Marketing pages empty | Run `marketing-tables.sql` in Supabase SQL Editor |
+| Marketing pages empty | Re-apply `schema.sql` from source project, or run `marketing-tables.sql` as fallback |
+| Schema out of sync | Re-dump from source: `supabase db dump -f schema.sql` and re-apply to target |
 | "Supabase env variables are missing" | Check `.env` has `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY` |
 | Cannot sign in | Verify user exists in both Supabase Auth and `users` table with matching UUID |
 | Invite fails ("email already registered") | User already exists in Auth; delete or use a different email |
@@ -761,13 +796,14 @@ Reuses the **Reception Desk** view:
 
 | File | Contents |
 |---|---|
-| `seed-database.sql` | Demo academic data |
-| `accounting-tables.sql` | Finance / voucher schema |
-| `marketing-tables.sql` | Marketing schema + sample data |
-| `PROJECT_MANAGEMENT_SCHEMA.sql` | Tasks, projects, time logs |
-| `SPRINT_SCHEMA.sql` | Sprint tables |
-| `SUPABASE_COMMANDS.sql` | Marketing commands (alternate) |
-| `README_MARKETING_SETUP.md` | Marketing setup walkthrough |
+| `schema.sql` | **Primary** — full schema dump from `supabase db dump` (see §1.3) |
+| `roles.sql` | Custom database roles from `supabase db dump --role-only` |
+| `seed-database.sql` | Optional demo academic data |
+| `accounting-tables.sql` | Legacy — finance / voucher schema (reference only) |
+| `marketing-tables.sql` | Legacy — marketing schema + sample data (reference only) |
+| `PROJECT_MANAGEMENT_SCHEMA.sql` | Legacy — tasks, projects, time logs (reference only) |
+| `SPRINT_SCHEMA.sql` | Legacy — sprint tables (reference only) |
+| `README_MARKETING_SETUP.md` | Marketing module walkthrough |
 
 ---
 
