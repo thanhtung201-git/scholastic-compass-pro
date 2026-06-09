@@ -1,501 +1,774 @@
-# MCNAEdu ERP — User Guide
+# MCNA ERP — Setup & User Guide
 
-A comprehensive guide to every menu pane and function in the MCNAEdu ERP system — a multi-branch academic center management platform covering students, classes, schedules, tuition, payroll, HR, marketing, and project management.
+**MCNA ERP** (Scholastic Compass Pro) is a multi-branch academic center management platform. It replaces spreadsheet workflows with a single system for students, classes, schedules, tuition, payroll, HR, marketing, and internal project management.
+
+This guide is written for someone new to the project: how to install it, how the modules connect, and how to use each function.
 
 ---
 
 ## Table of Contents
 
-1. [Authentication](#1-authentication)
-2. [Dashboard](#2-dashboard)
-3. [Finance & Accounting](#3-finance--accounting)
-   - 3.1 [Tuition Invoices](#31-tuition-invoices)
-   - 3.2 [Payments](#32-payments)
-   - 3.3 [Expenses / Cash Vouchers](#33-expenses--cash-vouchers)
-   - 3.4 [Balance Sheet](#34-balance-sheet)
-   - 3.5 [Payroll](#35-payroll)
-   - 3.6 [Salary](#36-salary)
-4. [Human Resources](#4-human-resources)
-   - 4.1 [Employees](#41-employees)
-   - 4.2 [Teachers](#42-teachers)
-   - 4.3 [Attendance Tracking](#43-attendance-tracking)
-   - 4.4 [Leave Approve](#44-leave-approve)
-5. [Project Management](#5-project-management)
-   - 5.1 [Task Assignment](#51-task-assignment)
-   - 5.2 [Kanban Board](#52-kanban-board)
-   - 5.3 [Gantt Chart](#53-gantt-chart)
-   - 5.4 [Sprint Planning](#54-sprint-planning)
-   - 5.5 [Workload View](#55-workload-view)
-   - 5.6 [Comments & Threads](#56-comments--threads)
-   - 5.7 [Time Tracking](#57-time-tracking)
-   - 5.8 [Projects](#58-projects)
-6. [Administration](#6-administration)
-   - 6.1 [User Management](#61-user-management)
-   - 6.2 [Audit Logs](#62-audit-logs)
-7. [Role-Based Access Summary](#7-role-based-access-summary)
+1. [Quick Start (Developers)](#1-quick-start-developers)
+2. [First-Time Organization Setup](#2-first-time-organization-setup)
+3. [Signing In & Daily Use](#3-signing-in--daily-use)
+4. [How the System Fits Together](#4-how-the-system-fits-together)
+5. [Navigation & Roles](#5-navigation--roles)
+6. [Module Reference](#6-module-reference)
+   - [6.1 Dashboard](#61-dashboard)
+   - [6.2 Academic](#62-academic)
+   - [6.3 Finance & Accounting](#63-finance--accounting)
+   - [6.4 Human Resources](#64-human-resources)
+   - [6.5 Marketing](#65-marketing)
+   - [6.6 Project Management](#66-project-management)
+   - [6.7 Administration](#67-administration)
+7. [Common Workflows](#7-common-workflows)
+8. [Role-Based Access Summary](#8-role-based-access-summary)
+9. [Notes & Troubleshooting](#9-notes--troubleshooting)
 
 ---
 
-## 1. Authentication
+## 1. Quick Start (Developers)
+
+### Prerequisites
+
+| Requirement | Version / Notes |
+|---|---|
+| Node.js | 18+ recommended |
+| npm | Comes with Node.js |
+| Supabase project | PostgreSQL database + Auth enabled |
+| Git | To clone the repository |
+
+### 1.1 Clone and install
+
+```bash
+git clone <repository-url>
+cd scholastic-compass-pro
+npm install
+```
+
+### 1.2 Configure environment variables
+
+Create a `.env` file in the project root (copy from an existing `.env` or ask your team for credentials):
+
+```env
+VITE_SUPABASE_URL="https://your-project.supabase.co"
+VITE_SUPABASE_PUBLISHABLE_KEY="your-anon-key"
+```
+
+These values come from **Supabase Dashboard → Project Settings → API**.
+
+> Do not commit `.env` to version control. It contains project secrets.
+
+### 1.3 Set up the database
+
+Run the SQL scripts in your **Supabase SQL Editor** in this order:
+
+| Script | Purpose |
+|---|---|
+| Core schema tables | Your main Supabase migration / schema (branches, students, classes, users, etc.) |
+| `seed-database.sql` | Optional demo data (branches, courses, teachers, students, invoices) |
+| `accounting-tables.sql` | Cash vouchers, journal entries, salary receipts |
+| `marketing-tables.sql` | Marketing module (leads, campaigns, sources, promotions) |
+| `PROJECT_MANAGEMENT_SCHEMA.sql` | Tasks, sprints, time logs, comments |
+| `SPRINT_SCHEMA.sql` | Sprint planning tables |
+
+For marketing setup details, see `README_MARKETING_SETUP.md`.
+
+> **Auto-seeding:** On first app load, if the `branches` table is empty, the app automatically seeds demo records. You will see a toast: *"First run: Initializing database with demo records..."*
+
+### 1.4 Run the development server
+
+```bash
+npm run dev
+```
+
+Open the URL shown in the terminal (commonly `http://localhost:8081` or similar). The dev server port is managed by the TanStack Start / Lovable config.
+
+### 1.5 Other commands
+
+| Command | Purpose |
+|---|---|
+| `npm run build` | Production build |
+| `npm run preview` | Preview production build locally |
+| `npm run lint` | Run ESLint |
+| `npm run format` | Format code with Prettier |
+
+### 1.6 Production deployment
+
+The app is configured for **Cloudflare Workers** via `wrangler.jsonc`. Build with `npm run build` and deploy using your Cloudflare workflow. Ensure the same `VITE_*` environment variables are set in your deployment environment.
+
+---
+
+## 2. First-Time Organization Setup
+
+Follow this sequence when onboarding a new academic center.
+
+```mermaid
+flowchart TD
+    A[Create Supabase project] --> B[Run SQL schemas]
+    B --> C[Create first Admin user in Supabase Auth]
+    C --> D[Insert Admin row in users table]
+    D --> E[Sign in to MCNA ERP]
+    E --> F[System Setup: branches, departments, roles]
+    F --> G[User Management: invite staff]
+    G --> H[Academic: classes, schedule, students]
+    H --> I[Finance: tuition, payroll]
+```
+
+### Step 1 — Create the first Admin account
+
+The login page (`/auth`) only supports **Sign In**. New accounts are created by an Admin via **User Management**, or manually in Supabase:
+
+1. **Supabase Dashboard → Authentication → Users → Add user**
+   - Email: e.g. `admin@mcnaedu.vn`
+   - Password: choose a secure password (minimum 6 characters)
+2. **Supabase Dashboard → Table Editor → `users`**
+   - Insert a row with the same `id` as the Auth user UUID
+   - Set `role` to `Admin`, `status` to `Active`, and assign a `branch_id`
+
+### Step 2 — Configure the organization (Admin only)
+
+Go to **System Setup** (`/system-setup`):
+
+| Tab | What to configure |
+|---|---|
+| **Menu Access** | Toggle which sidebar modules each role can see |
+| **Departments** | Academic, Finance, HR, Marketing, etc. (supports Excel import) |
+| **Roles** | Job roles linked to departments and hierarchy level |
+| **Branches** | Physical campus locations (supports Excel import) |
+
+### Step 3 — Invite staff
+
+Go to **User Management** (`/users`) → **Invite User**:
+
+- Creates a Supabase Auth account
+- Inserts into `users` and `employee` tables
+- Default temporary password: **`password123`** (staff should change it via the avatar menu → **Change Password**)
+
+### Step 4 — Load academic data
+
+1. **Classes** — Create classes with course, teacher, room, branch, and capacity
+2. **Schedule** — Add weekly lesson sessions (conflict detection for room/teacher double-booking)
+3. **Students** — Enroll students into classes (capacity check enforced)
+4. **Tuition** — Invoices are tied to enrolled students
+
+---
+
+## 3. Signing In & Daily Use
 
 **Route:** `/auth`
 
-The login and registration gateway for the system.
-
-### Functions
-
-| Function | Description |
+| Action | How |
 |---|---|
-| **Sign In** | Log in with email and password (default: 'password123'). Redirects to `/dashboard` on success. |
-| **Sign Up** | Admin creates accounts for users (reference 6.1). |
+| **Sign In** | Enter email and password. Redirects to `/dashboard` on success. |
+| **Change Password** | Top-right avatar menu → **Change Password**. Requires current password verification. |
+| **Sign Out** | Avatar menu → **Sign Out** |
 
-> After sign-in, the system fetches the user's profile from the `users` table. If a Teacher role is detected, a teacher profile is automatically synced to the `teachers` table.
+After sign-in, the app loads the user's profile from the `users` table. The sidebar shows only modules allowed for that role (and enabled in System Setup).
 
 ---
 
-## 2. Dashboard
+## 4. How the System Fits Together
+
+MCNA ERP is organized into six functional areas that share the same database.
+
+```mermaid
+flowchart LR
+    subgraph Academic
+        ST[Students] --> CL[Classes]
+        CL --> SC[Schedule]
+        SC --> AT[Attendance]
+        AT --> HW[Homework]
+        ST --> TU[Tuition Invoices]
+    end
+
+    subgraph Finance
+        TU --> PAY[Payments]
+        PAY --> EXP[Expenses / Vouchers]
+        AT --> PR[Teacher Payroll]
+        EMP[Employees] --> SAL[Salary]
+    end
+
+    subgraph HR
+        EMP --> ATT[Attendance Tracking]
+        EMP --> LV[Leave Approve]
+    end
+
+    subgraph Marketing
+        LD[Leads] --> FU[Follow-up]
+        LD --> ST
+        CP[Campaigns] --> EXP
+    end
+
+    subgraph PM[Project Management]
+        TK[Tasks] --> KB[Kanban]
+        TK --> TT[Time Tracking]
+    end
+```
+
+### Data flow highlights
+
+| Flow | Path |
+|---|---|
+| **Student enrollment** | Marketing Lead → Student record → Class enrolment → Tuition invoice |
+| **Lesson → teacher pay** | Schedule → Attendance log → Payroll approval → Payslip |
+| **Staff salary** | Employee record → Generate payroll → Approve payment → Cash voucher (optional) |
+| **Marketing spend** | Campaign budget → Expense voucher (linked source) → Balance Sheet |
+| **Internal work** | Task created → Assigned → Kanban/Gantt → Time logged → Done |
+
+---
+
+## 5. Navigation & Roles
+
+The sidebar is grouped into sections defined in `src/lib/nav-config.ts`:
+
+| Section | Modules |
+|---|---|
+| **Core** | Dashboard |
+| **Finance & Accounting** | Tuition, Payments, Expenses, Balance Sheet, Payroll, Salary |
+| **Human Resources** | Teachers, Employees, Attendance Tracking, Leave Approve |
+| **Academic** | Students, Classes, Schedule, Homework, Attendance, Rooms |
+| **Project Management** | Projects, Task Assignment, Kanban, Gantt, Sprint Planning, Workload, Comments, Time Tracking |
+| **Marketing** | Leads, Campaigns, Sources, Promotions, Follow-up, Reports |
+| **Administration** | User Management, Audit Logs, System Setup |
+
+**Admin** sees all sections. Other roles see a filtered subset. **System Setup** is always visible to Admin even when modules are toggled off.
+
+---
+
+## 6. Module Reference
+
+### 6.1 Dashboard
 
 **Route:** `/dashboard`
 
-The landing page after login. The content shown depends entirely on the logged-in user's role.
+The landing page after login. Content depends on the logged-in role.
 
-### Role-Specific Views
-
-| Role | View Shown |
+| Role | View |
 |---|---|
 | **Admin** | Admin Console + Enterprise Overview (tabbed) |
 | **Director** | Executive Overview + Enterprise Overview (tabbed) |
-| **Academic Staff** | Academic Operations dashboard |
-| **Accountant** | Finance Center dashboard |
+| **Academic Staff / Manager** | Academic Operations dashboard |
+| **Accountant / Finance Manager** | Finance Center dashboard |
 | **Receptionist** | Reception Desk dashboard |
-| **Teacher / Student** | Access-denied message (management only) |
+| **Teacher / Student** | Access-denied message (management roles only) |
 
-### Admin / Director Console — Sections
+**Admin / Director Console** includes: Finance KPIs, People & Operations KPIs, Project Tasks, Revenue Trend chart, Audit Log timeline, Class Health by Branch, Users by Role chart, System Alerts, Tasks by Department, Recent Tasks, Teacher Wages.
 
-- **Finance KPIs** — Total Revenue, Total Expenses, Teacher Payout, Unpaid Invoices count
-- **People & Operations KPIs** — Active Users, Blocked Accounts, Students count, Branch count
-- **Project Tasks** — Live counts for Todo / In Progress / Review / Done tasks
-- **Revenue Trend** — Bar chart of tuition collected over the last 6 months
-- **Audit Log** — Live timeline of the 5 most recent system actions
-- **Class Health by Branch** — Per-branch active/ended class breakdown
-- **Users by Role** — Horizontal bar chart of staff distribution by role
-- **System Alerts** — Pending attendance log count, unpaid invoice count, database health
-- **Tasks by Department** — Card grid with todo/active/done counts and a progress bar per department
-- **Recent Tasks** — List of the 8 most recently created tasks with status badges
-- **Teacher Wages** — Card per teacher showing approved hours and total wage earned
+**Enterprise Overview** includes: Finance & Accounting stats, Human Resources stats, Project Management progress bars.
 
-### Enterprise Overview — Sections
+**Academic Dashboard** includes: Active Classes, Enrolled Students, Teacher count, Today's Sessions, Class Overview table, Quick Actions.
 
-- **Finance & Accounting** — Revenue, Expenses, Payroll, Net Balance stat cards
-- **Human Resources** — Teacher count, Staff count, Employees by Department, Action Items (pending attendance)
-- **Project Management** — Total tasks with per-status progress bars (Todo, In Progress, Review, Done)
+**Accountant Dashboard** includes: Revenue Collected, Outstanding Debt, Overdue Invoices, Payroll Queue.
 
-### Academic Dashboard — Sections
-
-- Active Classes, Enrolled Students, Teacher count, Today's Sessions stat cards
-- Class Overview table (enrolment fill bar per class)
-- Quick Actions (links to Students, Scheduler, Homework, Payroll)
-
-### Accountant Dashboard — Sections
-
-- Revenue Collected, Outstanding Debt, Total Billed, Payroll Pending stat cards
-- Overdue Invoices list (top 6)
-- Payroll Queue (pending attendance logs)
-
-### Receptionist Dashboard — Sections
-
-- Room availability, today's visitors, today's sessions stat cards
-- Room Availability grid (free/in-use status per classroom)
-- Today's Check-ins log with manual guest check-in
+**Receptionist Dashboard** includes: Room availability, today's visitors, today's sessions, manual guest check-in.
 
 ---
 
-## 3. Finance & Accounting
+### 6.2 Academic
 
-### 3.1 Tuition Invoices
+#### Students
+
+**Route:** `/students`
+
+| Function | Description |
+|---|---|
+| **Search** | Filter by name or email |
+| **Filters** | By class, branch, and status |
+| **Add Student** | Name, email, phone, parent name, enrolled class, branch. Capacity check prevents over-enrollment. |
+| **Edit Student** | Update profile and class assignment |
+| **Delete Student** | Remove student record |
+| **Status sorting** | Active students ("Đang học") appear first |
+| **Audit log** | Add/update actions are logged automatically |
+
+#### Classes
+
+**Route:** `/classes`
+
+| Function | Description |
+|---|---|
+| **Class cards** | Show course, teacher, room, branch, enrolment count vs. capacity, status |
+| **Create Class** | Name, course, teacher, room, branch, start date, max capacity |
+| **Edit / Delete** | Update class details. Delete blocked if active enrolments exist. |
+| **Navigate to Schedule** | Quick link from class card |
+
+#### Schedule
+
+**Route:** `/schedule`
+
+| Function | Description |
+|---|---|
+| **Weekly grid** | Monday–Sunday view with prev/next week navigation |
+| **Add Session** | Class, room, teacher, date, start/end time |
+| **Conflict detection** | Warns on room or teacher double-booking |
+| **Edit / Delete** | Modify or remove scheduled lessons |
+| **Audit log** | Schedule changes are logged |
+
+#### Homework
+
+**Route:** `/homework`
+
+| Function | Description |
+|---|---|
+| **Assignments tab** | Create homework linked to a class (title, description, due date) |
+| **Grading Grid** | Staff view: score (0–10) and feedback per submission |
+| **Submit Work** | Student view: submit assignments (when Student role is used) |
+| **Audit log** | Grading actions are logged |
+
+#### Attendance
+
+**Route:** `/attendance`
+
+| Function | Description |
+|---|---|
+| **Lesson Sessions** | Select a scheduled lesson log |
+| **Student Roster** | Mark each student Present / Late / Absent |
+| **Pay summary** | Shows hours, hourly rate, and total pay for the session |
+| **Submit Log** | Saves attendance and marks log as Approved (feeds into Payroll) |
+
+#### Rooms
+
+**Route:** `/rooms`
+
+Reuses the **Reception Desk** view:
+
+| Function | Description |
+|---|---|
+| **Room Availability** | Live free/in-use status based on today's schedule |
+| **Search rooms** | Filter by room name |
+| **Guest Check-in** | Manual visitor log for front desk |
+| **Stats** | Available rooms, today's visitors, sessions today, branch count |
+
+---
+
+### 6.3 Finance & Accounting
+
+#### Tuition Invoices
 
 **Route:** `/tuition`
 
-Tracks all student tuition invoices, payment status, and outstanding balances.
-
 | Function | Description |
 |---|---|
-| **Summary Cards** | Displays total billed, total collected, and total outstanding across all invoices. |
-| **Search** | Filter invoices by student name or invoice ID. |
-| **Status Badge** | Dynamically computed as Paid, Partially Paid, Unpaid, or Overdue (if past due date). |
-| **Record Payment** | Opens a dialog to record a partial or full payment for an invoice. Enter amount and select payment method (Bank Transfer, Cash, Card, E-Wallet). Updates `amount_paid`, `remaining_debt`, and `status` directly in the database. |
-| **View Invoice Detail** | Opens a printable invoice view showing student info, class, payment summary, and payment note. |
-| **Print Invoice** | Triggers browser print for the detail view. |
-| **Export CSV** | Downloads all filtered invoices as a UTF-8 CSV file. |
+| **Summary Cards** | Total billed, collected, and outstanding |
+| **Search** | Filter by student name or invoice ID |
+| **Status Badge** | Paid, Partially Paid, Unpaid, or Overdue |
+| **Record Payment** | Partial or full payment with method (Bank Transfer, Cash, Card, E-Wallet) |
+| **View / Print Invoice** | Printable detail view |
+| **Export CSV** | Download filtered invoices |
 
----
-
-### 3.2 Payments
+#### Payments
 
 **Route:** `/accounting/payments`
 
-Shows the full transaction history of individual tuition payments (from the `tuition_payments` table).
-
 | Function | Description |
 |---|---|
-| **Search** | Filter by student name or invoice ID. |
-| **Payment Count Badge** | Shows number of results in the current filter. |
-| **Export CSV** | Downloads filtered payment records as a BOM-prefixed CSV (Excel-compatible with Vietnamese characters). |
+| **Search** | Filter by student name or invoice ID |
+| **Payment history** | All individual tuition payment records |
+| **Export CSV** | Excel-compatible with Vietnamese characters |
 
----
-
-### 3.3 Expenses / Cash Vouchers
+#### Expenses / Cash Vouchers
 
 **Route:** `/accounting/expenses`
 
-Full double-entry cash voucher management system for receipts (Thu) and payments (Chi).
-
 | Function | Description |
 |---|---|
-| **Create Receipt (Phiếu Thu)** | Opens a form to create a new income voucher. Includes auto-generated voucher number, date, payer name, reason, amount (with Vietnamese words auto-filled), debit/credit account fields, department, and file attachment. |
-| **Create Payment (Phiếu Chi)** | Same as above but for expense vouchers. |
-| **Source Linking** | Link a voucher to an existing expense record, payroll receipt, or marketing campaign. Selecting a source auto-fills amount, payee name, and reason. |
-| **Post Voucher (Duyệt)** | Approves a Draft voucher: creates journal entries (debit + credit), marks linked payroll as "Đã chi", updates marketing campaign spend, and sets status to "Posted". |
-| **Cancel Voucher** | Sets a Draft or Posted voucher to "Cancelled". |
-| **Edit Voucher** | Re-opens the form for any Draft voucher. |
-| **View Detail** | Opens a print-ready A5 voucher layout with signature blocks. |
-| **Print** | Opens a popup print window for the voucher. |
-| **Download PDF** | Exports the voucher detail as a PDF using html2canvas + jsPDF. |
-| **Filter** | Filter by type (Thu/Chi), department, status (Draft/Posted/Cancelled), and date range. |
-| **Export CSV** | Downloads filtered vouchers as a CSV. |
-| **Import Excel** | Upload an `.xlsx` file to bulk-create Draft vouchers. Validates required columns, shows row-by-row error highlighting before confirmation. |
+| **Create Receipt (Phiếu Thu)** | Income voucher with auto voucher number, Vietnamese amount words, debit/credit accounts |
+| **Create Payment (Phiếu Chi)** | Expense voucher |
+| **Source Linking** | Link to expense, payroll receipt, or marketing campaign |
+| **Post Voucher (Duyệt)** | Creates journal entries, updates linked records |
+| **Cancel / Edit** | Manage Draft vouchers |
+| **View / Print / PDF** | A5 voucher layout with signature blocks |
+| **Filter & Export** | By type, department, status, date range |
+| **Import Excel** | Bulk-create Draft vouchers with row validation |
 
----
-
-### 3.4 Balance Sheet
+#### Balance Sheet
 
 **Route:** `/accounting/balance-sheet`
 
-Automated financial balance sheet aggregated from journal entries, expenses, payroll, and marketing data.
-
 | Function | Description |
 |---|---|
-| **Period Selection** | Choose between Month, Quarter, or Year view. Select year, month/quarter as applicable. |
-| **Auto-calculation** | All figures are computed from live database data: cash (111/112), receivables (131), prepaid (142), fixed assets (211), depreciation (214), supplier payables (331), salary payables (334), tax payable (333), and equity accounts (411, 421). |
-| **Comparative View** | Each line shows current period vs. previous period values side by side. |
-| **Balance Check** | A red warning banner appears if Total Assets ≠ Total Sources (with the exact difference shown). |
-| **Footer Insights** | Headcount by department, pending payroll count and amount, active campaign budget remaining. |
-| **Refresh** | Manually re-fetches all data. |
-| **Export Excel** | Downloads the balance sheet plus raw journal entries, payroll, and expense detail sheets as an `.xlsx` file. |
-| **Print** | Browser print of the full report. |
+| **Period Selection** | Month, Quarter, or Year |
+| **Auto-calculation** | From journal entries, expenses, payroll, marketing |
+| **Comparative View** | Current vs. previous period |
+| **Balance Check** | Warning if Assets ≠ Sources |
+| **Export Excel / Print** | Full report with detail sheets |
 
----
-
-### 3.5 Payroll
+#### Payroll (Teachers)
 
 **Route:** `/payroll`
 
-Manages teacher attendance-based wage approval and payslip generation.
-
-**Tabs:**
-
-#### Payslips Tab
+**Payslips tab:**
 
 | Function | Description |
 |---|---|
-| **Generate Payslip** | Select a teacher and month, optionally add bonus and deduction amounts. Base salary is calculated from approved attendance logs in that period. |
-| **Mark as Paid** | Changes payslip status from Draft to Paid. Available to Accountants and Admins only. |
-| **Payslip Table** | Displays all payslips with teacher name, period, base salary, bonus, deductions, total, and status. |
+| **Generate Payslip** | Select teacher and month; base from approved attendance logs |
+| **Mark as Paid** | Accountant / Admin only |
+| **Payslip Table** | All payslips with bonus, deductions, total, status |
 
-#### Attendance Logs Tab
+**Attendance Logs tab:**
 
 | Function | Description |
 |---|---|
-| **Pending/Approved Summary** | Shows total VND pending approval and total approved. |
-| **Attendance Log Table** | Lists all attendance logs with teacher, class, date, hours, hourly rate, total pay, and approval status. |
-| **Approve Log** | One-click approval for Draft logs. Updates status to Approved, making them eligible for payslip calculation. Available to Accountants and Admins. |
+| **Pending / Approved summary** | VND totals |
+| **Approve Log** | One-click approval for Draft logs |
+| **Log table** | Teacher, class, date, hours, rate, total pay, status |
+
+#### Salary (Staff)
+
+**Route:** `/salary` — Finance Manager, Accountant, Admin, Director only
+
+| Function | Description |
+|---|---|
+| **Period Picker** | Month and year |
+| **Generate Payroll** | Creates receipts for all active employees; DB trigger calculates BHXH/BHYT/BHTN (10.5%) and progressive income tax |
+| **Summary Bar** | Total fund, voucher channel, receipt count |
+| **Approve (Duyệt chi)** | Mark individual receipt as paid |
+| **View Payslip** | A4 payslip with letterhead and deduction breakdown |
+| **Print / Export PDF** | Download payslip |
 
 ---
 
-### 3.6 Salary
+### 6.4 Human Resources
 
-**Route:** `/salary`
-
-Automated monthly payroll receipt management with Vietnamese tax and insurance deductions.
-
-> Access restricted to Finance Manager, Accountant, Admin, and Director roles.
-
-| Function | Description |
-|---|---|
-| **Period Picker** | Select month and year for the payroll period. |
-| **Generate Payroll** | Scans all active employees, inserts payroll receipts for those without one in the selected period. A DB trigger calculates gross salary, insurance (BHXH 8% + BHYT 1.5% + BHTN 1% = 10.5%), progressive income tax, and net salary automatically. |
-| **Summary Bar** | Shows total payroll fund (in billions VND), voucher channel (VietQR), and total receipt count. |
-| **Payroll Table** | Lists each employee with their gross salary, insurance deduction, income tax, net take-home pay, and payment status (Chờ chuyển / Đã chi / Tạm hoãn). |
-| **Approve (Duyệt chi)** | Marks an individual receipt as "Đã chi" (paid). |
-| **View Payslip (Phiếu chi)** | Opens an A4-formatted payslip modal with school letterhead, employee info, income/deduction breakdown, and net pay. |
-| **Print / Export PDF** | Print or download the payslip as a PDF. |
-| **Pagination** | 10 records per page with Previous/Next navigation. |
-
----
-
-## 4. Human Resources
-
-### 4.1 Employees
+#### Employees
 
 **Route:** `/employees`
 
-Full employee directory with search, department filter, and per-employee detail.
-
 | Function | Description |
 |---|---|
-| **Search** | Filter by name or phone number (case-insensitive). |
-| **Department Filter** | Dropdown to show only employees in a specific department. |
-| **Stats Bar** | Shows total employee count, currently filtered count, average total salary, and insurance/tax note. |
-| **Employee Table** | Paginated (15 per page) list showing full name, role, department, phone, and total salary (base + bonus). |
-| **Detail Modal** | Click "Detail" to view a full profile: email, phone, department, role, contract type, base salary, bonus salary, start date, and status. Email is fetched from the linked `users` table. |
-| **Pagination** | Previous/Next buttons with current page indicator. |
+| **Search** | By name or phone |
+| **Department Filter** | Dropdown filter |
+| **Stats Bar** | Total count, filtered count, average salary |
+| **Employee Table** | Paginated (15/page): name, role, department, phone, total salary |
+| **Detail Modal** | Full profile including contract, base/bonus salary, start date |
 
----
-
-### 4.2 Teachers
+#### Teachers
 
 **Route:** `/teachers`
 
-Read-only table of all teachers in the system.
-
 | Function | Description |
 |---|---|
-| **Teacher Table** | Displays name, subject, branch, and hourly rate for each teacher. |
+| **Teacher Table** | Name, subject, branch, hourly rate (read-only) |
 
----
-
-### 4.3 Attendance Tracking
+#### Attendance Tracking
 
 **Route:** `/attendance-tracking`
 
-Daily employee check-in/check-out records from the `attendance_tracking` table.
-
 | Function | Description |
 |---|---|
-| **Date Filter** | Date picker (defaults to today) to view records for any specific date. |
-| **Attendance Table** | Shows employee name, date, check-in time, check-out time, status badge (PRESENT / LATE / ABSENT / LEAVE), and notes. |
-| **Status Badge** | Color-coded: green for Present, orange for Late, red for Absent, blue for Leave. |
+| **Date Filter** | Defaults to today |
+| **Attendance Table** | Check-in/out, status (PRESENT / LATE / ABSENT / LEAVE), notes |
 
----
-
-### 4.4 Leave Approve
+#### Leave Approve
 
 **Route:** `/leave-approve`
 
-Leave request submission and approval workflow.
-
 | Function | Description |
 |---|---|
-| **View Leave Requests** | All users see their own requests. HR Manager, HR Staff, and Director can see all employee requests. |
-| **Department Filter** | Directors and HR roles can filter by department. |
-| **Status Filter** | Filter by ALL / Pending / Approved / Rejected. |
-| **Add Leave Request** | Opens a dialog to create a new leave request. Regular employees fill their own details; HR can select any employee. Fields: employee, reason (textarea), start date, end date. |
-| **Approve Request** | HR roles see "Duyệt" (Approve) and "Từ chối" (Reject) buttons for Pending requests. A confirmation dialog appears before any action. |
-| **Confirmation Dialog** | Requires explicit confirmation before approving or rejecting. |
-| **Status Badge** | Color-coded: orange for Pending, green for Approved, red for Rejected. |
+| **View Requests** | Own requests for all users; all requests for HR/Director |
+| **Filters** | Department and status (Pending / Approved / Rejected) |
+| **Add Leave Request** | Employee, reason, start/end dates |
+| **Approve / Reject** | HR roles only, with confirmation dialog |
 
 ---
 
-## 5. Project Management
+### 6.5 Marketing
 
-### 5.1 Task Assignment
+> Requires `marketing-tables.sql` to be run first. See `README_MARKETING_SETUP.md`.
+
+#### Leads
+
+**Route:** `/marketing/leads`
+
+| Function | Description |
+|---|---|
+| **Table / Kanban views** | Toggle between list and pipeline board |
+| **Search & Filter** | By name, email, phone, status, source |
+| **Add / Edit / Delete Lead** | Full name, contact info, source, status, notes, assigned staff |
+| **Lead Detail** | Navigate to `/marketing/leads/:id` for activity history and notes |
+| **Status pipeline** | New → Interested → Trial Scheduled → Registered → Paid / Lost |
+| **Drag on Kanban** | Update lead status by moving cards |
+
+#### Campaigns
+
+**Route:** `/marketing/campaigns`
+
+| Function | Description |
+|---|---|
+| **Campaign table** | Name, channel, budget, dates, status |
+| **Add / Edit / Delete** | Facebook Ads, Google Ads, Workshop, etc. |
+| **Status** | Planning, Running, Paused, Completed, Cancelled |
+| **Budget tracking** | Links to expense vouchers when posted |
+
+#### Sources
+
+**Route:** `/marketing/sources`
+
+| Function | Description |
+|---|---|
+| **Source list** | Facebook Ads, Google Ads, Referral, etc. |
+| **Add / Edit / Delete** | Name, description, active toggle |
+
+#### Promotions
+
+**Route:** `/marketing/promotions`
+
+| Function | Description |
+|---|---|
+| **Promotion codes** | Discount type, value, validity dates |
+| **Copy code** | One-click copy to clipboard |
+| **Status filter** | Active, Scheduled, Expired |
+
+#### Follow-up
+
+**Route:** `/marketing/follow-up`
+
+| Function | Description |
+|---|---|
+| **Task list** | Follow-up tasks linked to leads |
+| **Add / Edit / Delete** | Type, title, note, deadline, priority, assigned staff |
+| **Status** | Pending, In Progress, Completed, Overdue |
+| **Deadline alerts** | Overdue items highlighted |
+
+#### Reports
+
+**Route:** `/marketing/reports`
+
+| Function | Description |
+|---|---|
+| **Lead statistics** | Counts by status and source |
+| **Conversion metrics** | Lead-to-enrollment funnel |
+| **Campaign analysis** | Budget vs. spend overview |
+| **Charts** | Visual breakdown of pipeline health |
+
+---
+
+### 6.6 Project Management
+
+#### Task Assignment
 
 **Route:** `/task-assignment`
 
-Full task management with table and kanban views, filtered by role and department.
-
 | Function | Description |
 |---|---|
-| **Role-Based Visibility** | Directors see all tasks. Managers see tasks in their department. Other staff see only tasks assigned to them. |
-| **Table View** | Sortable table with title, department (Director only), assignee, priority badge, due date with overdue indicator, and status badge. |
-| **Kanban View** | Four-column board (Todo / In Progress / Review / Done) with drag-and-drop between columns. |
-| **Status Filter** | Tab-style buttons to filter by All / Todo / In Progress / Review / Done. |
-| **Department Filter** | Director-only dropdown to filter by department. |
-| **New Task** | Dialog (managers and above only) with fields: title, description, department, assign-to (filtered by department roles), priority, and due date (text field + calendar picker). |
-| **Update Status (Table)** | Dropdown in the Actions column to change task status (managers only). |
-| **Drag and Drop (Kanban)** | Drag a card to a new column to update its status in the database. |
-| **Task Detail Modal** | Eye icon opens a detailed modal with tabs for Details, Comments, Attachments, and Time tracking. |
+| **Role-based visibility** | Directors: all; Managers: department; Staff: own tasks |
+| **Table / Kanban views** | Sortable table or four-column drag-and-drop board |
+| **New Task** | Title, description, department, assignee, priority, due date (managers+) |
+| **Update Status** | Dropdown or drag-and-drop |
+| **Task Detail Modal** | Details, Comments, Attachments, Time tracking tabs |
 
----
-
-### 5.2 Kanban Board
+#### Kanban Board
 
 **Route:** `/kanban-board`
 
-Dedicated kanban board with task creation and real-time assignment.
-
 | Function | Description |
 |---|---|
-| **Four Columns** | Todo, In Progress, Review, Done — each showing task count. |
-| **Drag and Drop** | Drag tasks between columns to update status. |
-| **Assign User** | Inline `<select>` dropdown on each card to reassign the task to any user. |
-| **New Task** | Dialog (managers only) with title, description, department, assign-to, priority, and due date. |
-| **View Detail** | Eye icon on each card opens the Task Detail Modal. |
+| **Four columns** | Todo, In Progress, Review, Done |
+| **Drag and Drop** | Update status by moving cards |
+| **Assign User** | Inline dropdown on each card |
+| **New Task / View Detail** | Create tasks and open detail modal |
 
----
-
-### 5.3 Gantt Chart
+#### Gantt Chart
 
 **Route:** `/gantt-chart`
 
-Visual timeline of all tasks by department and assignee.
-
 | Function | Description |
 |---|---|
-| **Zoom Levels** | Week (96px/day), Month (48px/day), Quarter (24px/day). |
-| **Department Filter** | Pill buttons to show all departments or a specific one. |
-| **Today Line** | Red vertical line with a "Today" label marks the current date. |
-| **Task Bars** | Colored bars per department, spanning from task creation date to due date. Overdue tasks (past due, not Done) display a red hatched pattern. |
-| **Tooltips** | Hover over a bar to see assignee, created date, due date, status, and priority. An "Overdue" badge appears if applicable. |
-| **Role Filtering** | Directors see all tasks; other roles see only tasks in their department. |
+| **Zoom** | Week / Month / Quarter |
+| **Department filter** | Pill buttons |
+| **Today line** | Red vertical marker |
+| **Task bars** | Span creation to due date; overdue hatched pattern |
+| **Tooltips** | Assignee, dates, status, priority |
 
----
-
-### 5.4 Sprint Planning
+#### Sprint Planning
 
 **Route:** `/sprint-planning`
 
-Agile sprint management with backlog assignment and capacity tracking.
-
 | Function | Description |
 |---|---|
-| **Sprint List** | Left panel showing all sprints with name, date range, and task count. Click to select. |
-| **Create Sprint** | Dialog with sprint name, description, goal, start/end dates, and team capacity (hours). Status defaults to "Planning". |
-| **Delete Sprint** | Removes the sprint after confirmation. All tasks in the sprint have their `sprint_id` cleared (moved to backlog). |
-| **Sprint Overview** | Shows duration, capacity (hours), hours used by estimated tasks, and remaining capacity (red if overloaded). |
-| **Add Task to Sprint** | Dialog to select a backlog task (filtered by role) and assign it to the current sprint. |
-| **Remove Task from Sprint** | Trash icon on a sprint task card clears its `sprint_id`, returning it to the backlog. |
-| **Backlog** | Bottom grid showing all tasks not yet in any sprint, with status and priority badges. |
-| **Capacity Bar** | Reflects estimated hours vs. capacity in real time. |
+| **Sprint list** | Create, select, delete sprints |
+| **Capacity tracking** | Hours used vs. team capacity |
+| **Add / Remove tasks** | Move tasks between sprint and backlog |
+| **Backlog grid** | Unassigned tasks |
 
----
-
-### 5.5 Workload View
+#### Workload View
 
 **Route:** `/workload-view`
 
-Visualizes task load per person to identify bottlenecks.
-
 | Function | Description |
 |---|---|
-| **Department Filter** | Pill buttons to filter by department. |
-| **User Cards** | Each card shows name, role, department, capacity percentage badge, Active/Done/Overdue counts, capacity progress bar (green → blue → amber → red), and the first 3 task titles. |
-| **Overload Warning** | A red alert appears on cards at ≥ 90% capacity, suggesting how many tasks to redistribute. |
-| **Max Capacity** | Set at 8 active tasks per person. |
-| **Task Detail Sidebar** | Clicking a user card opens a slide-out sheet listing all their tasks with status and due date. |
+| **User cards** | Capacity %, active/done/overdue counts, progress bar |
+| **Overload warning** | Alert at ≥ 90% capacity (8 tasks max) |
+| **Task sidebar** | Click a user to see all their tasks |
 
----
-
-### 5.6 Comments & Threads
+#### Comments & Threads
 
 **Route:** `/comments-threads`
 
-Threaded discussion system linked to individual tasks.
-
 | Function | Description |
 |---|---|
-| **Task Cards** | Left panel grid of all tasks in the user's department (clickable to open the thread). |
-| **Thread Panel** | Slide-out sheet showing the full comment thread for the selected task. |
-| **Task Header** | Shows title, assignee, due date, status, and priority in the panel header. |
-| **Add Comment** | Textarea with toolbar buttons (Bold, Italic, Link, Attachment, @-mention). Click Send to post. |
-| **Reply** | "Reply" button on any comment pre-fills the textarea with `@FirstName` and links the new comment as a reply. |
-| **Threaded Replies** | Replies are indented under their parent comment with a left border. |
-| **Activity Log** | Right sidebar in the panel shows a timestamped log of all comments and status events. |
-| **Real-time Updates** | Panel subscribes to Supabase Realtime for the task's comments and auto-refreshes on new messages. |
-| **Mentions** | `@username` patterns in comment text are highlighted in blue. |
+| **Task cards** | Select a task to open its thread |
+| **Threaded comments** | Reply, @-mentions, activity log |
+| **Real-time updates** | Supabase Realtime subscription |
 
----
-
-### 5.7 Time Tracking
+#### Time Tracking
 
 **Route:** `/time-tracking`
 
-Log and monitor time spent on individual tasks.
-
 | Function | Description |
 |---|---|
-| **Quick Start Timer** | Select a task from the dropdown and click "Start Timer". The elapsed time counter runs in real time. Only one timer can run at a time — starting a new one stops the previous. |
-| **Stop Timer** | Stops the active timer and saves the end time to the database. |
-| **Active Timer Banner** | A green banner shows the running timer with elapsed time and task name while tracking. |
-| **Manual Entry** | Dialog to log time retroactively: select task, set start time, end time (datetime-local inputs), and optional description. |
-| **Stats Cards** | Today's total hours/minutes, filtered period total, and log count. |
-| **Date Filter** | Toggle between Today, This Week, or All Time. |
-| **Time Log Table** | Shows task name, date, start time, end time ("Running" if active), duration, and description. |
-| **Delete Log** | Trash icon removes a time log entry after confirmation. |
-| **Role Filtering** | Same logic as Task Assignment — Directors see all, Managers see their department, others see their own tasks. |
+| **Quick Start Timer** | One active timer at a time |
+| **Manual Entry** | Retroactive time logs |
+| **Stats** | Today, this week, all time |
+| **Delete Log** | Remove entries with confirmation |
 
----
-
-### 5.8 Projects
+#### Projects
 
 **Route:** `/projects` and `/projects/:projectId`
 
-High-level project tracker with a Kanban board per project.
-
 | Function | Description |
 |---|---|
-| **Project Cards** | Grid of all projects showing code, name, description, manager, status badge, start date, and progress bar. |
-| **Search** | Filter projects by name or code. |
-| **Create Project** | Dialog with project code, name, description, manager (user select), start/end dates, status, and progress percentage. |
-| **Delete Project** | Confirms and removes the project. |
-| **View Project Details** | Navigates to `/projects/:id` showing a 4-tab view. |
-| **Kanban Tab** | Four-column drag-and-drop board (Todo / In Progress / Review / Done). Cards show priority badge, title, description, assignee avatar, and due date. Drag to update status in Supabase. |
-| **Calendar Tab** | Placeholder — "Calendar integration coming soon." |
-| **Workload Tab** | Placeholder — "Workload Management coming soon." |
-| **Analytics Tab** | Placeholder — "Analytics Dashboard coming soon." |
+| **Project cards** | Code, name, manager, status, progress |
+| **Create / Delete Project** | Full project metadata |
+| **Kanban tab** | Per-project four-column board |
+| **Calendar / Workload / Analytics tabs** | Placeholders for future features |
 
 ---
 
-## 6. Administration
+### 6.7 Administration
 
-### 6.1 User Management
+#### User Management
 
 **Route:** `/users` — Admin only
 
 | Function | Description |
 |---|---|
-| **User Table** | Paginated list (15 per page) of all system users with name, email, role, branch, status badge, active toggle, and delete button. |
-| **Role Switcher** | Admin users can change any user's role via a dropdown directly in the table row. Change is logged in the Audit Log. |
-| **Active Toggle** | Switch to activate or block a user account. Toggle state persists to the database and is reflected immediately. |
-| **Delete User** | Confirms and permanently removes the user record from the `users` table. |
-| **Invite User** | Full dialog to onboard a new employee: Full Name, Email, Phone, Role (from DB roles table), Branch, Department (auto-filled from role, overridable), Contract Type, Base Salary, Bonus Salary (with validation: must be < 70% of base), and Start Date. Creates a Supabase Auth account, inserts into `users`, and inserts into `employee` in sequence. |
-| **Bonus Salary Validation** | Real-time feedback under the bonus field: red warning if ≥ 70% of base, green checkmark with percentage if valid. |
-| **Pagination** | Previous/Next navigation. |
+| **User Table** | Paginated list with role, branch, status |
+| **Role Switcher** | Change role inline (logged in Audit) |
+| **Active Toggle** | Activate or block accounts |
+| **Delete User** | Permanent removal |
+| **Invite User** | Creates Auth + `users` + `employee` records. Default password: `password123` |
+| **Import Excel** | Bulk user onboarding |
+| **Bonus Salary Validation** | Must be < 70% of base salary |
 
----
-
-### 6.2 Audit Logs
+#### Audit Logs
 
 **Route:** `/audit` — Admin only
 
 | Function | Description |
 |---|---|
-| **Timeline View** | Chronological event log with timeline dots, actor name, action description, target, action type badge, and timestamp. |
-| **Auto-logged Events** | Attendance submissions, class creation/update/deletion, payroll approval, role changes, user activation/blocking, student additions, homework assignments, schedule changes, and tuition payments all write to this log automatically. |
+| **Timeline View** | Chronological log with actor, action, target, type, timestamp |
+| **Auto-logged Events** | Attendance, classes, payroll, roles, users, students, homework, schedule, tuition |
+
+#### System Setup
+
+**Route:** `/system-setup` — Admin only (always visible in sidebar)
+
+| Tab | Functions |
+|---|---|
+| **Menu Access** | Per-module, per-role toggle matrix. Save to `module_access` table. |
+| **Departments** | Add, rename, delete, import Excel (`department_name` column) |
+| **Roles** | Add, rename, delete roles with department and hierarchy level |
+| **Branches** | Add, rename, delete branches; import Excel (`branch_name` column) |
 
 ---
 
-## 10. Role-Based Access Summary
+## 7. Common Workflows
+
+### Workflow A — Enroll a new student (end to end)
+
+1. **Marketing** (optional): Create a lead → follow up → mark as Registered
+2. **Students**: Add student, select class and branch (capacity enforced)
+3. **Tuition**: Invoice appears; record first payment
+4. **Schedule**: Student's class sessions are already on the weekly grid
+5. **Homework / Attendance**: Teacher marks attendance and grades homework
+
+### Workflow B — Pay a teacher
+
+1. **Schedule**: Lessons are scheduled for the class
+2. **Attendance**: Teacher submits lesson log with student attendance
+3. **Payroll → Attendance Logs**: Accountant approves the log
+4. **Payroll → Payslips**: Generate payslip for the month
+5. **Payroll**: Mark payslip as Paid
+
+### Workflow C — Run monthly staff salary
+
+1. **Employees**: Ensure all staff have salary and contract data
+2. **Salary**: Select period → **Generate Payroll**
+3. Review gross, insurance (10.5%), tax, and net per employee
+4. **Approve (Duyệt chi)** each receipt
+5. (Optional) **Expenses**: Create a Phiếu Chi voucher linked to payroll
+
+### Workflow D — Close the books for a period
+
+1. **Expenses**: Post all Draft vouchers (Thu/Chi)
+2. **Tuition**: Ensure payments are recorded
+3. **Balance Sheet**: Select period, verify Assets = Sources
+4. **Export Excel** for archival
+
+### Workflow E — Onboard a new staff member
+
+1. **System Setup**: Confirm department and role exist
+2. **User Management → Invite User**: Fill profile, role, branch, salary
+3. Staff signs in with `password123`, changes password
+4. Staff sees only modules enabled for their role in System Setup
+
+---
+
+## 8. Role-Based Access Summary
 
 | Role | Key Accessible Sections |
 |---|---|
-| **Admin** | All sections + User Management + Audit Logs |
+| **Admin** | All sections + User Management + Audit Logs + System Setup |
 | **Director** | All sections (read-all across departments) |
 | **Finance Manager** | Tuition, Payments, Expenses, Balance Sheet, Salary, Task Management |
 | **Accountant** | Tuition, Payments, Payroll (approve), Task Management |
-| **Academic Manager** | Classes, Students, Schedule, Homework, Task Management (Academic dept) |
-| **Academic Staff** | Classes, Students, Schedule, Homework, Payroll (view), Task Management |
-| **HR Manager** | Employees, Teachers, Attendance Tracking, Leave Approve, Task Management (HR dept) |
+| **Academic Manager** | Classes, Students, Schedule, Homework, Attendance, Rooms, Task Management (Academic) |
+| **Academic Staff** | Classes, Students, Schedule, Homework, Attendance, Rooms, Payroll (view), Task Management |
+| **HR Manager** | Employees, Teachers, Attendance Tracking, Leave Approve, Task Management (HR) |
 | **HR Staff** | Employees, Teachers, Attendance Tracking, Leave Approve, Task Management |
-| **Marketing Manager** | Full Marketing module, Task Management (Marketing dept) |
+| **Marketing Manager** | Full Marketing module, Task Management (Marketing) |
 | **Marketing Staff** | Full Marketing module, Task Management |
+
+> System Setup can further restrict modules per role beyond this table.
 
 ---
 
-## Notes
+## 9. Notes & Troubleshooting
 
-- **Currency:** All monetary values are displayed in Vietnamese Dong (VND) formatted with `vi-VN` locale.
-- **Language:** The interface is primarily English with some Vietnamese labels in the Finance/Salary and HR sections.
-- **Database:** Supabase (PostgreSQL) with real-time subscriptions for Comments & Threads.
-- **Auto-seeding:** On first run (empty `branches` table), the system automatically seeds the database with demo data across all tables.
-- **Change Password:** Available to all logged-in users from the top-right avatar dropdown. Requires current password verification before updating.
+### General
+
+| Topic | Detail |
+|---|---|
+| **Currency** | Vietnamese Dong (VND), `vi-VN` locale |
+| **Language** | English UI with Vietnamese labels in Finance/Salary/HR |
+| **Database** | Supabase PostgreSQL with Realtime (Comments & Threads) |
+| **Default invite password** | `password123` — change on first login |
+
+### Common issues
+
+| Problem | Solution |
+|---|---|
+| Blank data on first load | Wait for auto-seed toast to finish, or run `seed-database.sql` manually |
+| Marketing pages empty | Run `marketing-tables.sql` in Supabase SQL Editor |
+| "Supabase env variables are missing" | Check `.env` has `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY` |
+| Cannot sign in | Verify user exists in both Supabase Auth and `users` table with matching UUID |
+| Invite fails ("email already registered") | User already exists in Auth; delete or use a different email |
+| Sidebar module missing | Admin: check **System Setup → Menu Access** for that role |
+| Balance Sheet imbalance | Ensure all vouchers are Posted; check for unlinked journal entries |
+
+### SQL reference files
+
+| File | Contents |
+|---|---|
+| `seed-database.sql` | Demo academic data |
+| `accounting-tables.sql` | Finance / voucher schema |
+| `marketing-tables.sql` | Marketing schema + sample data |
+| `PROJECT_MANAGEMENT_SCHEMA.sql` | Tasks, projects, time logs |
+| `SPRINT_SCHEMA.sql` | Sprint tables |
+| `SUPABASE_COMMANDS.sql` | Marketing commands (alternate) |
+| `README_MARKETING_SETUP.md` | Marketing setup walkthrough |
+
+---
+
+*MCNA ERP — Built for multi-branch academic centers. For technical contributions, follow existing patterns in `src/lib/nav-config.ts`, `src/hooks/use-database.tsx`, and route files under `src/routes/_app/`.*
