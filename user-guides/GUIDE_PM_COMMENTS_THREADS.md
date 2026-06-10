@@ -1,0 +1,3 @@
+# 📘 Comments & Threads Guide\n\n> **Module:** Comments & Threads\n> **Section:** Project Management\n> **Access Levels:** All Roles\n\n---\n\n## 🌐 Overview\nCommunicate with team members regarding specific tasks or general topics.\n\n## ✨ Key Features\n- Start new discussion threads\n- Reply to conversations\n- Tag users\n\n---\n\n## 🚀 Step-by-Step Instructions\n\n### Starting a Thread\n\n1. Go to **Comments & Threads**.
+2. Click **+ New Thread**.
+3. Enter Title and Message, then post.\n\n### Replying\n\nClick on an existing thread to read it and type your response at the bottom.\n\n---\n*For further assistance, refer to the main User Guide or contact your System Administrator.*\n

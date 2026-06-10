@@ -1,0 +1,4 @@
+# 📘 Promotions Guide\n\n> **Module:** Promotions\n> **Section:** Marketing\n> **Access Levels:** Director, Admin, Marketing Manager, Marketing Staff\n\n---\n\n## 🌐 Overview\nCreate and manage discount codes for marketing campaigns.\n\n## ✨ Key Features\n- Create promo codes\n- Set discount types and values\n- Track expiry\n\n---\n\n## 🚀 Step-by-Step Instructions\n\n### Creating a Promo Code\n\n1. Click **Promotions**.
+2. Click **+ Add Promotion**.
+3. Enter the Code, Discount Type, Value, and Expiry Date.
+4. Click **Save**.\n\n---\n*For further assistance, refer to the main User Guide or contact your System Administrator.*\n

@@ -1,0 +1,4 @@
+# 📘 Student Attendance Guide\n\n> **Module:** Student Attendance\n> **Section:** Academic\n> **Access Levels:** Director, Admin, Academic Manager, Academic Staff\n\n---\n\n## 🌐 Overview\nTrack daily attendance for students in specific classes.\n\n## ✨ Key Features\n- Class-based attendance lists\n- Present/Absent toggles\n\n---\n\n## 🚀 Step-by-Step Instructions\n\n### Taking Attendance\n\n1. Go to **Attendance** under Academic.
+2. Select the **Class** and **Date**.
+3. Mark each student as Present or Absent.
+4. Click **Save All**.\n\n---\n*For further assistance, refer to the main User Guide or contact your System Administrator.*\n

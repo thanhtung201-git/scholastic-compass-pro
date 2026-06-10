@@ -1,0 +1,4 @@
+# 📘 Expenses Guide\n\n> **Module:** Expenses\n> **Section:** Finance & Accounting\n> **Access Levels:** Director, Admin, Finance Manager, Accountant\n\n---\n\n## 🌐 Overview\nManage company expenses, categorize spending, and keep track of outgoing funds.\n\n## ✨ Key Features\n- Log new expenses\n- Categorize expenses\n- Attach receipts (if applicable)\n\n---\n\n## 🚀 Step-by-Step Instructions\n\n### Adding an Expense\n\n1. Go to **Expenses** in the sidebar.
+2. Click **+ Add Expense**.
+3. Fill in the **Category**, **Amount**, **Date**, and **Description**.
+4. Click **Save**.\n\n### Editing/Deleting Expenses\n\nUse the **Edit** (pencil) or **Delete** (trash) icons next to any expense record to modify or remove it.\n\n---\n*For further assistance, refer to the main User Guide or contact your System Administrator.*\n

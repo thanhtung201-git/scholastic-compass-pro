@@ -1,0 +1,4 @@
+# 📘 Projects Guide\n\n> **Module:** Projects\n> **Section:** Project Management\n> **Access Levels:** All Roles\n\n---\n\n## 🌐 Overview\nHigh-level project tracking, team assignment, and progress monitoring.\n\n## ✨ Key Features\n- Create projects\n- Assign team members\n- View project details and overall progress\n\n---\n\n## 🚀 Step-by-Step Instructions\n\n### Creating a Project\n\n1. Click **Projects** in the sidebar.
+2. Click **+ New Project**.
+3. Fill in Title, Description, Dates, and assign Team Members.
+4. Click **Save**.\n\n---\n*For further assistance, refer to the main User Guide or contact your System Administrator.*\n

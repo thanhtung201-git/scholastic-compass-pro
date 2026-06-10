@@ -1,0 +1,4 @@
+# 📘 User Management Guide\n\n> **Module:** User Management\n> **Section:** Administration\n> **Access Levels:** Admin\n\n---\n\n## 🌐 Overview\nManage system access, create new user accounts, and assign roles.\n\n## ✨ Key Features\n- Add/Edit/Delete users\n- Block/Unblock access\n- Assign roles and departments\n\n---\n\n## 🚀 Step-by-Step Instructions\n\n### Managing Users\n\n1. Go to **User Management** under Administration.
+2. Click **+ Add User** to create a new account.
+3. Use the **Edit** icon to change roles.
+4. Use the **Block** button to temporarily revoke access without deleting the account.\n\n---\n*For further assistance, refer to the main User Guide or contact your System Administrator.*\n

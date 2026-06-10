@@ -1,0 +1,3 @@
+# 📘 Marketing Reports Guide\n\n> **Module:** Reports\n> **Section:** Marketing\n> **Access Levels:** Director, Admin, Marketing Manager, Marketing Staff\n\n---\n\n## 🌐 Overview\nView analytics and charts regarding marketing performance and lead conversion.\n\n## ✨ Key Features\n- Visual charts (Lead Volume, Conversion Rates)\n- Filter by date range\n- Export data\n\n---\n\n## 🚀 Step-by-Step Instructions\n\n### Viewing Reports\n\n1. Click **Reports** under Marketing.
+2. Use the date picker to adjust the reporting period.
+3. Review the charts to analyze source performance and ROI.\n\n---\n*For further assistance, refer to the main User Guide or contact your System Administrator.*\n

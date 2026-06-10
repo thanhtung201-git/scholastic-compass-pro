@@ -1,0 +1,4 @@
+# 📘 Students Guide\n\n> **Module:** Students\n> **Section:** Academic\n> **Access Levels:** Director, Admin, Academic Manager, Academic Staff\n\n---\n\n## 🌐 Overview\nManage student enrollments, profiles, and class assignments.\n\n## ✨ Key Features\n- Student directory\n- Enroll new students\n- Edit student profiles\n\n---\n\n## 🚀 Step-by-Step Instructions\n\n### Enrolling a Student\n\n1. Go to **Students**.
+2. Click **+ Add Student**.
+3. Fill in Full Name, DOB, Parent Contact, Class, and Enrollment Date.
+4. Click **Save**.\n\n---\n*For further assistance, refer to the main User Guide or contact your System Administrator.*\n

@@ -1,0 +1,3 @@
+# 📘 Salary Guide\n\n> **Module:** Salary\n> **Section:** Finance & Accounting\n> **Access Levels:** Director, Admin, Finance Manager, Accountant\n\n---\n\n## 🌐 Overview\nManage and review detailed salary records for individual employees.\n\n## ✨ Key Features\n- View detailed salary slips\n- Filter by month/year\n- Check base pay, allowances, and deductions\n\n---\n\n## 🚀 Step-by-Step Instructions\n\n### Reviewing Salary Records\n\n1. Click **Salary** in the sidebar.
+2. Use the filters to select a specific month and year.
+3. Click on any employee's record to see the full breakdown.\n\n---\n*For further assistance, refer to the main User Guide or contact your System Administrator.*\n

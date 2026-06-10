@@ -1,0 +1,4 @@
+# 📘 Teachers Guide\n\n> **Module:** Teachers\n> **Section:** Human Resources\n> **Access Levels:** Director, Admin, HR Manager, HR Staff\n\n---\n\n## 🌐 Overview\nManage teaching staff, including their subjects, hourly rates, and branch assignments.\n\n## ✨ Key Features\n- Add new teachers\n- Edit teacher profiles\n- Track hourly rates\n\n---\n\n## 🚀 Step-by-Step Instructions\n\n### Adding a Teacher\n\n1. Go to **Teachers** in the sidebar.
+2. Click **+ Add Teacher**.
+3. Fill in details like Subject, Hourly Rate, and Branch.
+4. Click **Save**.\n\n---\n*For further assistance, refer to the main User Guide or contact your System Administrator.*\n

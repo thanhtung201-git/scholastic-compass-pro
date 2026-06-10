@@ -1,0 +1,4 @@
+# 📘 Employees Guide\n\n> **Module:** Employees\n> **Section:** Human Resources\n> **Access Levels:** Director, Admin, HR Manager, HR Staff\n\n---\n\n## 🌐 Overview\nManage all non-teaching staff, track departments, positions, and basic salary info.\n\n## ✨ Key Features\n- Maintain employee directory\n- Add/edit/delete employee records\n\n---\n\n## 🚀 Step-by-Step Instructions\n\n### Adding an Employee\n\n1. Click **Employees** in the sidebar.
+2. Click **+ Add Employee**.
+3. Fill in Name, Email, Department, Position, Hire Date, and Salary.
+4. Click **Save**.\n\n### Editing an Employee\n\nClick the **Edit** icon on the employee's row to update their information, then click **Save**.\n\n---\n*For further assistance, refer to the main User Guide or contact your System Administrator.*\n

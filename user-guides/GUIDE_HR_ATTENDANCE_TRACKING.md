@@ -1,0 +1,4 @@
+# 📘 Attendance Tracking Guide\n\n> **Module:** Attendance Tracking\n> **Section:** Human Resources\n> **Access Levels:** Director, Admin, HR Manager, HR Staff\n\n---\n\n## 🌐 Overview\nTrack daily attendance for all employees and teachers.\n\n## ✨ Key Features\n- Daily attendance grid\n- Mark statuses (Present, Absent, Late, On Leave)\n- Export reports\n\n---\n\n## 🚀 Step-by-Step Instructions\n\n### Marking Attendance\n\n1. Go to **Attendance Tracking**.
+2. Use the date picker to select the correct day.
+3. Click on a staff member's status cell and select the appropriate status.
+4. Changes are saved automatically or click **Save All**.\n\n---\n*For further assistance, refer to the main User Guide or contact your System Administrator.*\n

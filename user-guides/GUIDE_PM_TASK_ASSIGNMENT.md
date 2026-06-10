@@ -1,0 +1,5 @@
+# 📘 Task Assignment Guide\n\n> **Module:** Task Assignment\n> **Section:** Project Management\n> **Access Levels:** All Roles\n\n---\n\n## 🌐 Overview\nCreate, assign, and manage individual tasks. (Note: You can only assign tasks to users one level below you in your department).\n\n## ✨ Key Features\n- Create tasks\n- Set priority and due dates\n- Assign to eligible team members\n- Update statuses\n\n---\n\n## 🚀 Step-by-Step Instructions\n\n### Assigning a Task\n\n1. Go to **Task Assignment**.
+2. Click **+ New Task**.
+3. Fill in details and select an eligible user from the **Assign To** dropdown.
+4. Click **Save**.\n\n### Updating Task Status\n\n1. Open a task.
+2. Change the Status dropdown (To Do -> In Progress -> Done).\n\n---\n*For further assistance, refer to the main User Guide or contact your System Administrator.*\n

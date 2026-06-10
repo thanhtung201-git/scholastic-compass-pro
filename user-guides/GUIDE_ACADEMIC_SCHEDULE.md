@@ -1,0 +1,4 @@
+# 📘 Schedule Guide\n\n> **Module:** Schedule\n> **Section:** Academic\n> **Access Levels:** Director, Admin, Academic Manager, Academic Staff\n\n---\n\n## 🌐 Overview\nView and manage the weekly class schedule across all rooms and teachers.\n\n## ✨ Key Features\n- Weekly calendar view\n- Add/Edit/Delete class sessions\n- Conflict detection\n\n---\n\n## 🚀 Step-by-Step Instructions\n\n### Scheduling a Session\n\n1. Go to **Schedule**.
+2. Click on a time slot in the calendar.
+3. Select the Class, Room, Teacher, and adjust the times.
+4. Click **Save**.\n\n---\n*For further assistance, refer to the main User Guide or contact your System Administrator.*\n

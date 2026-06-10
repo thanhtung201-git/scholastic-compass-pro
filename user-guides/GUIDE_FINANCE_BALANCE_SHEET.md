@@ -1,0 +1,4 @@
+# 📘 Balance Sheet Guide\n\n> **Module:** Balance Sheet\n> **Section:** Finance & Accounting\n> **Access Levels:** Director, Admin, Finance Manager, Accountant\n\n---\n\n## 🌐 Overview\nView a financial snapshot of the company including assets, liabilities, and equity.\n\n## ✨ Key Features\n- View financial summaries\n- Filter by date range\n- Export reports\n\n---\n\n## 🚀 Step-by-Step Instructions\n\n### Viewing the Balance Sheet\n\n1. Click **Balance Sheet** in the sidebar.
+2. Select the desired **date range** or **month**.
+3. Review the breakdown of Assets, Liabilities, and Equity.
+4. Click **Export** to download the report.\n\n---\n*For further assistance, refer to the main User Guide or contact your System Administrator.*\n

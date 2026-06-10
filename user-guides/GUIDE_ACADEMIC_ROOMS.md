@@ -1,0 +1,3 @@
+# 📘 Rooms Guide\n\n> **Module:** Rooms\n> **Section:** Academic\n> **Access Levels:** Director, Admin, Academic Manager, Academic Staff\n\n---\n\n## 🌐 Overview\nManage physical classroom spaces, capacities, and availability.\n\n## ✨ Key Features\n- Add new rooms\n- Set room capacity\n- Update room status\n\n---\n\n## 🚀 Step-by-Step Instructions\n\n### Managing Rooms\n\n1. Click **Rooms** in the sidebar.
+2. Click **+ Add Room** to create a new space.
+3. Use **Edit** to update details or mark a room as unavailable.\n\n---\n*For further assistance, refer to the main User Guide or contact your System Administrator.*\n

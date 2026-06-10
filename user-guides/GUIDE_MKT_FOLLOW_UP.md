@@ -1,0 +1,4 @@
+# 📘 Follow-up Guide\n\n> **Module:** Follow-up\n> **Section:** Marketing\n> **Access Levels:** Director, Admin, Marketing Manager, Marketing Staff\n\n---\n\n## 🌐 Overview\nManage reminders and tasks related to contacting leads.\n\n## ✨ Key Features\n- Create follow-up tasks\n- Set due dates and priorities\n- Mark as completed\n\n---\n\n## 🚀 Step-by-Step Instructions\n\n### Adding a Follow-up\n\n1. Go to **Follow-up**.
+2. Click **+ Add Follow-up**.
+3. Select the Lead, Due Date, and Priority.
+4. Click **Save**.\n\n### Completing a Task\n\nCheck the box next to a task to move it to the Completed section. Overdue tasks appear in red.\n\n---\n*For further assistance, refer to the main User Guide or contact your System Administrator.*\n
