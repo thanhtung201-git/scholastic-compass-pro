@@ -1,7 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useAuth } from "@/lib/auth-context";
+import { notifyTaskAssigned } from "@/lib/notifications";
 import { supabase } from "@/lib/supabase";
+import { matchesTaskSearch, sortTasksByPriorityAndDueDate } from "@/lib/task-list-utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -12,7 +14,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { format, differenceInDays, isPast, parseISO, parse, isValid } from "date-fns";
-import { CalendarIcon, Plus, AlertCircle, Clock, CheckCircle2, Circle, List, LayoutGrid, GripHorizontal, Eye } from "lucide-react";
+import { CalendarIcon, Plus, AlertCircle, Clock, CheckCircle2, Circle, List, LayoutGrid, GripHorizontal, Eye, Search, Pencil } from "lucide-react";
 import { TaskDetailModal } from "@/components/tasks/TaskDetailModal";
 
 type TaskStatus = "Todo" | "In Progress" | "Review" | "Done";
@@ -34,40 +36,68 @@ type Task = {
   assignee_name?: string;
 };
 
-const CAN_ASSIGN_ROLES = ["Director", "Finance Manager", "Academic Manager", "Admin", "HR Manager", "Marketing Manager"];
-const ROLE_DEPARTMENT_MAP: Record<string, string> = {
-  "Finance Manager": "Finance",
-  "Academic Manager": "Academic",
-  "Admin": "IT",
-  "HR Manager": "Human Resource",
-  "Marketing Manager": "Marketing",
-};
-
 const STATUSES: TaskStatus[] = ["Todo", "In Progress", "Review", "Done"];
 
-function canAssignOthers(role: string) {
-  return CAN_ASSIGN_ROLES.includes(role);
+/** A user can assign tasks if their role level is not null and < some max assignable level.
+ *  Any role with level < 3 (or whatever the deepest level is) can assign to roles one level below. */
+function canAssignOthers(userLevel: number | null): boolean {
+  return userLevel !== null && userLevel >= 1;
 }
 
-// Hàm xây dựng query lấy Task dựa trên Role
-function buildTaskQuery(supabaseClient: any, userId: string, userRole: string) {
+/** Build task query based on role level and department */
+function buildTaskQuery(
+  supabaseClient: any,
+  userId: string,
+  userLevel: number | null,
+  userDeptName: string | null,
+) {
   const base = supabaseClient.from("tasks").select(`
     id, title, description, department, assigned_to, assigned_by,
     priority, status, due_date, created_at,
     users!tasks_assigned_to_fkey(name)
   `).order("created_at", { ascending: false });
 
-  if (userRole === "Director") return base;
-  const deptName = ROLE_DEPARTMENT_MAP[userRole];
-  if (deptName) return base.eq("department", deptName);
+  // Level 1 (e.g. Director) sees everything
+  if (userLevel === 1) return base;
+  // Level 2 managers see tasks in their department
+  if (userLevel === 2 && userDeptName) return base.eq("department", userDeptName);
+  // Everyone else (level 3+) only sees their own tasks
   return base.eq("assigned_to", userId);
 }
 
-function getAllowedDeptIds(departments: Department[], userRole: string): Department[] {
-  if (userRole === "Director") return departments;
-  const allowed = ROLE_DEPARTMENT_MAP[userRole];
-  if (allowed) return departments.filter((d) => d.department_name === allowed);
-  return [];
+/** Fetch users in a department whose role level is exactly targetLevel */
+async function fetchUsersForDepartmentAtLevel(
+  departmentName: string,
+  targetLevel: number,
+): Promise<UserOption[]> {
+  const { data: rolesData, error: rolesError } = await supabase
+    .from("roles")
+    .select("role_name")
+    .eq("department_name", departmentName)
+    .eq("level", targetLevel);
+
+  if (rolesError || !rolesData?.length) return [];
+
+  const roleList = rolesData.map((r: any) => r.role_name);
+  const { data: usersData } = await supabase
+    .from("users")
+    .select("id, name")
+    .in("role", roleList);
+  return (usersData as UserOption[]) ?? [];
+}
+
+/** Legacy helper used by the edit dialog (fetches all users in a dept) */
+async function fetchUsersForDepartment(departmentName: string) {
+  const { data: rolesData, error: rolesError } = await supabase
+    .from("roles")
+    .select("role_name")
+    .eq("department_name", departmentName);
+
+  if (rolesError || !rolesData?.length) return [] as UserOption[];
+
+  const roleList = rolesData.map((role: any) => role.role_name);
+  const { data: usersData } = await supabase.from("users").select("id, name").in("role", roleList);
+  return (usersData as UserOption[]) ?? [];
 }
 
 function DueBadge({ due_date, status }: { due_date: string; status: string }) {
@@ -105,6 +135,11 @@ function TaskAssignmentPage() {
   const { user } = useAuth();
   const userRole: string = (user as any)?.role ?? "";
 
+  // Dynamic role-level state (fetched from DB)
+  const [userLevel, setUserLevel] = useState<number | null>(null);
+  const [userDeptName, setUserDeptName] = useState<string | null>(null);
+  const [levelLoading, setLevelLoading] = useState(true);
+
   const [open, setOpen] = useState(false);
   const [departments, setDepartments] = useState<Department[]>([]);
   const [users, setUsers] = useState<UserOption[]>([]);
@@ -113,6 +148,18 @@ function TaskAssignmentPage() {
   const [calendarOpen, setCalendarOpen] = useState(false);
   const [filterStatus, setFilterStatus] = useState("All");
   const [filterDept, setFilterDept] = useState("All");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [editingTask, setEditingTask] = useState<Task | null>(null);
+  const [editUsers, setEditUsers] = useState<UserOption[]>([]);
+  const [editCalendarOpen, setEditCalendarOpen] = useState(false);
+  const [editSaving, setEditSaving] = useState(false);
+  const [editError, setEditError] = useState<string | null>(null);
+  const [editForm, setEditForm] = useState({
+    title: "",
+    assigned_to: "",
+    priority: "Medium" as Task["priority"],
+    due_date: "",
+  });
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [viewMode, setViewMode] = useState<"table" | "kanban">("table");
@@ -132,6 +179,22 @@ function TaskAssignmentPage() {
 
   const [sprints, setSprints] = useState<any[]>([]);
 
+  // Fetch the current user's role level and department from the DB
+  useEffect(() => {
+    if (!userRole) return;
+    setLevelLoading(true);
+    supabase
+      .from("roles")
+      .select("level, department_name")
+      .eq("role_name", userRole)
+      .maybeSingle()
+      .then(({ data }) => {
+        setUserLevel(data?.level ?? null);
+        setUserDeptName(data?.department_name ?? null);
+        setLevelLoading(false);
+      });
+  }, [userRole]);
+
   useEffect(() => {
     supabase.from("department").select("id, department_name").then(({ data, error }) => {
       if (!error && data) setDepartments(data as Department[]);
@@ -149,7 +212,7 @@ function TaskAssignmentPage() {
 
   const fetchTasks = async () => {
     if (!user?.id) return;
-    const { data, error } = await buildTaskQuery(supabase, user.id, userRole);
+    const { data, error } = await buildTaskQuery(supabase, user.id, userLevel, userDeptName);
     if (!error && data) {
       const shaped = (data as any[]).map((t) => ({
         ...t,
@@ -160,21 +223,24 @@ function TaskAssignmentPage() {
   };
 
   useEffect(() => {
-    fetchTasks();
-  }, [user, userRole]);
+    if (!levelLoading) fetchTasks();
+  }, [user, userLevel, userDeptName, levelLoading]);
 
+  // When a department is selected, only load users with level = userLevel + 1
   useEffect(() => {
     if (!selectedDept) { setUsers([]); return; }
     const deptObj = departments.find((d) => d.id === selectedDept);
     if (!deptObj) return;
-    supabase.from("roles").select("role_name").eq("department_name", deptObj.department_name).then(async ({ data: rolesData, error: rolesError }) => {
-      if (rolesError || !rolesData?.length) { setUsers([]); return; }
-      const roleList = rolesData.map((r: any) => r.role_name);
-      const { data: usersData } = await supabase.from("users").select("id, name").in("role", roleList);
-      setUsers((usersData as UserOption[]) ?? []);
-    });
+
     setForm((prev) => ({ ...prev, department: selectedDept, assigned_to: "" }));
-  }, [selectedDept, departments]);
+
+    if (userLevel !== null) {
+      const targetLevel = userLevel + 1;
+      fetchUsersForDepartmentAtLevel(deptObj.department_name, targetLevel).then(setUsers);
+    } else {
+      setUsers([]);
+    }
+  }, [selectedDept, departments, userLevel]);
 
   useEffect(() => {
     if (user?.id) setForm((prev) => ({ ...prev, assigned_to: user.id }));
@@ -206,10 +272,19 @@ function TaskAssignmentPage() {
     };
 
     setIsSubmitting(true);
-    const { error } = await supabase.from("tasks").insert([payload]).select().single();
+    const { data, error } = await supabase.from("tasks").insert([payload]).select().single();
     setIsSubmitting(false);
 
     if (!error) {
+      if (data) {
+        await notifyTaskAssigned({
+          assigneeUserId: form.assigned_to,
+          actorUserId: user?.id,
+          actorName: user?.name ?? "Someone",
+          taskId: data.id,
+          taskTitle: data.title,
+        });
+      }
       setForm({ title: "", description: "", department: "", assigned_to: user?.id ?? "", priority: "Medium", due_date: "", estimated_hours: 0 });
       setSelectedDept("");
       setCalendarOpen(false);
@@ -249,18 +324,115 @@ function TaskAssignmentPage() {
   };
 
   const handleAssign = async (taskId: string, userId: string) => {
+    const task = tasks.find((item) => item.id === taskId);
+    if (!task || task.assigned_to === userId) return;
+
     await supabase.from("tasks").update({ assigned_to: userId }).eq("id", taskId);
+    await notifyTaskAssigned({
+      assigneeUserId: userId,
+      actorUserId: user?.id,
+      actorName: user?.name ?? "Someone",
+      taskId,
+      taskTitle: task.title,
+      isReassignment: true,
+    });
     await fetchTasks();
   };
 
-  const filteredTasks = tasks.filter((t) => {
-    const statusOk = filterStatus === "All" || t.status === filterStatus;
-    const deptOk = filterDept === "All" || t.department === filterDept;
-    return statusOk && deptOk;
-  });
+  const filteredTasks = useMemo(() => {
+    const filtered = tasks.filter((task) => {
+      const statusOk = filterStatus === "All" || task.status === filterStatus;
+      const deptOk = filterDept === "All" || task.department === filterDept;
+      return statusOk && deptOk && matchesTaskSearch(task, searchQuery);
+    });
+    return sortTasksByPriorityAndDueDate(filtered);
+  }, [tasks, filterStatus, filterDept, searchQuery]);
 
-  const allowedDepts = getAllowedDeptIds(departments, userRole);
+  // Departments the current user can assign tasks to:
+  // - Level 1 (Director): all departments
+  // - Level 2 (Manager): only their own department
+  // - Others: none
+  const allowedDepts = useMemo(() => {
+    if (userLevel === 1) return departments;
+    if (userLevel === 2 && userDeptName) {
+      return departments.filter((d) => d.department_name === userDeptName);
+    }
+    return [];
+  }, [departments, userLevel, userDeptName]);
+
   const uniqueDeptNames = [...new Set(tasks.map((t) => t.department).filter(Boolean))];
+  const canEditTask = (task: Task) => Boolean(user?.id && task.assigned_by === user.id);
+  const showActionsColumn =
+    canAssignOthers(userLevel) || tasks.some((task) => canEditTask(task));
+
+  const openEditDialog = async (task: Task) => {
+    setEditingTask(task);
+    setEditError(null);
+    setEditForm({
+      title: task.title,
+      assigned_to: task.assigned_to,
+      priority: task.priority,
+      due_date:
+        task.due_date && isValid(parseISO(task.due_date))
+          ? format(parseISO(task.due_date), "yyyy-MM-dd")
+          : "",
+    });
+    const departmentUsers = await fetchUsersForDepartment(task.department);
+    setEditUsers(departmentUsers);
+  };
+
+  const handleSaveEdit = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!editingTask || !user?.id) return;
+
+    if (!editForm.title.trim()) {
+      setEditError("Title is required.");
+      return;
+    }
+    if (!editForm.assigned_to) {
+      setEditError("Please select an assignee.");
+      return;
+    }
+
+    const formattedDueDate =
+      editForm.due_date && isValid(parseISO(editForm.due_date))
+        ? format(parseISO(editForm.due_date), "yyyy-MM-dd")
+        : null;
+
+    setEditSaving(true);
+    setEditError(null);
+
+    const { error } = await supabase
+      .from("tasks")
+      .update({
+        title: editForm.title.trim(),
+        assigned_to: editForm.assigned_to,
+        priority: editForm.priority,
+        due_date: formattedDueDate,
+      })
+      .eq("id", editingTask.id);
+
+    if (error) {
+      setEditError(error.message);
+      setEditSaving(false);
+      return;
+    }
+
+    if (editForm.assigned_to !== editingTask.assigned_to) {
+      await notifyTaskAssigned({
+        assigneeUserId: editForm.assigned_to,
+        actorUserId: user.id,
+        actorName: user.name ?? "Someone",
+        taskId: editingTask.id,
+        taskTitle: editForm.title.trim(),
+        isReassignment: true,
+      });
+    }
+
+    setEditSaving(false);
+    setEditingTask(null);
+    await fetchTasks();
+  };
 
   return (
     <div className="p-6 max-w-7xl mx-auto space-y-6">
@@ -293,7 +465,7 @@ function TaskAssignmentPage() {
           </div>
 
           {/* New Task */}
-          {canAssignOthers(userRole) && (
+          {canAssignOthers(userLevel) && (
             <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) setSubmitError(null); }}>
               <DialogTrigger asChild>
                 <Button><Plus className="size-4 mr-2" /> New Task</Button>
@@ -411,7 +583,18 @@ function TaskAssignmentPage() {
       </div>
 
       {/* Filters */}
-      <div className="flex gap-2 flex-wrap">
+      <div className="flex flex-col gap-3">
+        <div className="relative max-w-md">
+          <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            value={searchQuery}
+            onChange={(event) => setSearchQuery(event.target.value)}
+            placeholder="Search tasks by title, assignee, department, priority..."
+            className="pl-9"
+          />
+        </div>
+
+        <div className="flex gap-2 flex-wrap">
         <div className="flex rounded-md border overflow-hidden text-sm">
           {["All", "Todo", "In Progress", "Review", "Done"].map((s) => (
             <button
@@ -428,7 +611,7 @@ function TaskAssignmentPage() {
           ))}
         </div>
 
-        {userRole === "Director" && uniqueDeptNames.length > 0 && (
+        {userLevel === 1 && uniqueDeptNames.length > 0 && (
           <div className="flex rounded-md border overflow-hidden text-sm">
             {["All", ...uniqueDeptNames].map((d) => (
               <button
@@ -445,6 +628,7 @@ function TaskAssignmentPage() {
             ))}
           </div>
         )}
+        </div>
       </div>
 
       {/* Table View */}
@@ -459,14 +643,14 @@ function TaskAssignmentPage() {
               <thead>
                 <tr className="border-b bg-muted/40">
                   <th className="text-left px-4 py-3 font-medium text-muted-foreground">Title</th>
-                  {userRole === "Director" && (
+                  {userLevel === 1 && (
                     <th className="text-left px-4 py-3 font-medium text-muted-foreground">Department</th>
                   )}
                   <th className="text-left px-4 py-3 font-medium text-muted-foreground">Assignee</th>
                   <th className="text-left px-4 py-3 font-medium text-muted-foreground">Priority</th>
                   <th className="text-left px-4 py-3 font-medium text-muted-foreground">Due Date</th>
                   <th className="text-left px-4 py-3 font-medium text-muted-foreground">Status</th>
-                  {canAssignOthers(userRole) && (
+                  {showActionsColumn && (
                     <th className="text-left px-4 py-3 font-medium text-muted-foreground">Actions</th>
                   )}
                 </tr>
@@ -480,7 +664,7 @@ function TaskAssignmentPage() {
                         <div className="text-xs text-muted-foreground mt-0.5 line-clamp-1">{task.description}</div>
                       )}
                     </td>
-                    {userRole === "Director" && (
+                    {userLevel === 1 && (
                       <td className="px-4 py-3 text-muted-foreground">{task.department}</td>
                     )}
                     <td className="px-4 py-3">{task.assignee_name}</td>
@@ -494,21 +678,35 @@ function TaskAssignmentPage() {
                       </div>
                     </td>
                     <td className="px-4 py-3"><StatusBadge status={task.status} /></td>
-                    {canAssignOthers(userRole) && (
+                    {showActionsColumn && (
                       <td className="px-4 py-3">
-                        {task.status !== "Done" && (
-                          <Select value={task.status} onValueChange={(v) => updateStatus(task.id, v)}>
-                            <SelectTrigger className="h-7 text-xs w-[120px]">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="Todo">Todo</SelectItem>
-                              <SelectItem value="In Progress">In Progress</SelectItem>
-                              <SelectItem value="Review">Review</SelectItem>
-                              <SelectItem value="Done">Done</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        )}
+                        <div className="flex items-center gap-2">
+                          {canEditTask(task) && (
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              className="h-7 px-2"
+                              onClick={() => openEditDialog(task)}
+                            >
+                              <Pencil className="mr-1 size-3" />
+                              Edit
+                            </Button>
+                          )}
+                          {canAssignOthers(userLevel) && task.status !== "Done" && (
+                            <Select value={task.status} onValueChange={(v) => updateStatus(task.id, v)}>
+                              <SelectTrigger className="h-7 text-xs w-[120px]">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="Todo">Todo</SelectItem>
+                                <SelectItem value="In Progress">In Progress</SelectItem>
+                                <SelectItem value="Review">Review</SelectItem>
+                                <SelectItem value="Done">Done</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          )}
+                        </div>
                       </td>
                     )}
                   </tr>
@@ -552,7 +750,12 @@ function TaskAssignmentPage() {
                                     ))}
                                   </select>
                                 </div>
-                                <div className="flex items-center gap-2">
+                                <div className="flex items-center gap-1">
+                                  {canEditTask(task) && (
+                                    <Button variant="ghost" size="sm" onClick={() => openEditDialog(task)}>
+                                      <Pencil className="size-3" />
+                                    </Button>
+                                  )}
                                   <Button variant="ghost" size="sm" onClick={() => setModalTaskId(task.id)}>
                                     <Eye className="size-3" />
                                   </Button>
@@ -570,6 +773,114 @@ function TaskAssignmentPage() {
           </div>
         </div>
       )}
+
+      <Dialog open={Boolean(editingTask)} onOpenChange={(open) => { if (!open) setEditingTask(null); }}>
+        <DialogContent className="sm:max-w-[520px]">
+          <DialogHeader>
+            <DialogTitle>Edit Task</DialogTitle>
+          </DialogHeader>
+
+          <form onSubmit={handleSaveEdit} className="space-y-4 pt-2">
+            <div>
+              <label className="mb-1 block text-sm font-medium">Title</label>
+              <Input
+                value={editForm.title}
+                onChange={(event) => setEditForm((current) => ({ ...current, title: event.target.value }))}
+                required
+              />
+            </div>
+
+            <div>
+              <label className="mb-1 block text-sm font-medium">Assignee</label>
+              <Select
+                value={editForm.assigned_to}
+                onValueChange={(value) => setEditForm((current) => ({ ...current, assigned_to: value }))}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select assignee" />
+                </SelectTrigger>
+                <SelectContent>
+                  {editUsers.map((option) => (
+                    <SelectItem key={option.id} value={option.id}>
+                      {option.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <label className="mb-1 block text-sm font-medium">Priority</label>
+              <Select
+                value={editForm.priority}
+                onValueChange={(value) =>
+                  setEditForm((current) => ({ ...current, priority: value as Task["priority"] }))
+                }
+              >
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Low">Low</SelectItem>
+                  <SelectItem value="Medium">Medium</SelectItem>
+                  <SelectItem value="High">High</SelectItem>
+                  <SelectItem value="Critical">Critical</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <label className="mb-1 block text-sm font-medium">Due Date</label>
+              <div className="flex items-center gap-2">
+                <Input
+                  placeholder="YYYY-MM-DD"
+                  value={editForm.due_date}
+                  onChange={(event) => setEditForm((current) => ({ ...current, due_date: event.target.value }))}
+                  className="flex-1"
+                />
+                <Popover open={editCalendarOpen} onOpenChange={setEditCalendarOpen}>
+                  <PopoverTrigger asChild>
+                    <Button type="button" variant="outline" size="icon" className="shrink-0" aria-label="Open calendar">
+                      <CalendarIcon className="size-4" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="end" side="bottom">
+                    <Calendar
+                      mode="single"
+                      selected={
+                        editForm.due_date && isValid(parse(editForm.due_date, "yyyy-MM-dd", new Date()))
+                          ? parse(editForm.due_date, "yyyy-MM-dd", new Date())
+                          : undefined
+                      }
+                      onSelect={(date) => {
+                        setEditForm((current) => ({
+                          ...current,
+                          due_date: date ? format(date, "yyyy-MM-dd") : "",
+                        }));
+                        setEditCalendarOpen(false);
+                      }}
+                      initialFocus
+                    />
+                  </PopoverContent>
+                </Popover>
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-2 pt-2">
+              {editError && (
+                <p className="flex flex-1 items-center gap-1 text-sm text-red-600">
+                  <AlertCircle className="size-4 shrink-0" />
+                  {editError}
+                </p>
+              )}
+              <Button type="button" variant="outline" onClick={() => setEditingTask(null)}>
+                Cancel
+              </Button>
+              <Button type="submit" disabled={editSaving}>
+                {editSaving ? "Saving…" : "Save Changes"}
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
 
       {modalTaskId && (
         <TaskDetailModal taskId={modalTaskId} open={true} onOpenChange={(open) => { if (!open) setModalTaskId(null); }} userId={user?.id ?? ""} />

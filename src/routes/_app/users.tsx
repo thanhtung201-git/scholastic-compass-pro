@@ -10,7 +10,7 @@ import { useAuth } from "@/lib/auth-context";
 import { Loader2, Trash2, ChevronLeft, ChevronRight, Upload, Download, FileSpreadsheet, X } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ALL_ROLES, type Role } from "@/lib/types";
+import type { Role } from "@/lib/types";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
@@ -47,11 +47,13 @@ function InviteUserDialog() {
     branch_id:     "",
   });
 
-  // Load role→department mappings once
+  // Reload roles when dialog opens so newly added roles appear immediately
   useEffect(() => {
+    if (!open) return;
+
     async function loadOptions() {
       const [rolesRes, deptsRes] = await Promise.all([
-        supabase.from("roles").select("role_name, department_name"),
+        supabase.from("roles").select("role_name, department_name").order("role_name"),
         supabase.from("department").select("department_name").order("department_name"),
       ]);
 
@@ -71,7 +73,7 @@ function InviteUserDialog() {
       }
     }
     loadOptions();
-  }, []);
+  }, [open]);
 
   function reset() {
     setFormData({
@@ -455,7 +457,7 @@ function ImportUsersDialog({ onImportSuccess }: { onImportSuccess: () => void })
         row.full_name ? "" : "Cột 'full_name' không được để trống",
         row.email ? "" : "Cột 'email' không được để trống",
         phone ? "" : "Cột 'phone_number' không được để trống",
-        ALL_ROLES.includes(row.role as Role) ? "" : `Cột 'role' sai giá trị (không tồn tại role '${row.role}')`,
+        roleMappings[row.role] ? "" : `Cột 'role' sai giá trị (không tồn tại role '${row.role}')`,
         (!actualDept || actualDept === expectedDept) ? "" : `Cột 'department' sai giá trị (role '${row.role}' thuộc phòng '${expectedDept}', nhưng file ghi là '${actualDept}')`,
         ["Full-time", "Part-time"].includes(row.contract_type) ? "" : "Cột 'contract_type' phải là Full-time hoặc Part-time",
         row.base_salary !== "" && !isNaN(baseSalary) && baseSalary > 0 ? "" : "Cột 'base_salary' sai kiểu (phải là số > 0)",
@@ -637,22 +639,26 @@ function UsersPage() {
   const [roleFilter, setRoleFilter] = useState("All");
   const [departmentFilter, setDepartmentFilter] = useState("All");
   const [roleMappings, setRoleMappings] = useState<Record<string, string>>({});
+  const [roleOptions, setRoleOptions] = useState<string[]>([]);
   const [departments, setDepartments] = useState<string[]>([]);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-  const [bulkRole, setBulkRole] = useState<Role>("Academic Staff");
+  const [bulkRole, setBulkRole] = useState("Academic Staff");
   const [bulkLoading, setBulkLoading] = useState(false);
 
   useEffect(() => {
     async function loadOptions() {
-      const { data } = await supabase.from("roles").select("role_name, department_name");
+      const { data } = await supabase.from("roles").select("role_name, department_name").order("role_name");
       if (data) {
         const mapping: Record<string, string> = {};
         const depts = new Set<string>();
-        data.forEach((r: any) => { 
+        const roles: string[] = [];
+        data.forEach((r: any) => {
           mapping[r.role_name] = r.department_name;
           if (r.department_name) depts.add(r.department_name);
+          roles.push(r.role_name);
         });
         setRoleMappings(mapping);
+        setRoleOptions(roles);
         setDepartments(Array.from(depts));
       }
     }
@@ -672,6 +678,14 @@ function UsersPage() {
 
   const totalPages = Math.ceil(filteredUsers.length / pageSize) || 1;
   const paginatedUsers = filteredUsers.slice((page - 1) * pageSize, page * pageSize);
+
+  const roleChoices = React.useMemo(() => {
+    const choices = new Set(roleOptions);
+    users.forEach((user) => {
+      if (user.role) choices.add(user.role);
+    });
+    return Array.from(choices).sort((a, b) => a.localeCompare(b));
+  }, [roleOptions, users]);
 
   useEffect(() => {
     setPage(1); // Reset page on filter change
@@ -723,7 +737,7 @@ function UsersPage() {
     if (!ids.length || !currentUser) return;
     setBulkLoading(true);
     try {
-      await bulkUpdateUserRole(ids, bulkRole);
+      await bulkUpdateUserRole(ids, bulkRole as Role);
       const names = getSelectedUsers().map((u) => u.name).join(", ");
       await addAuditLog(
         currentUser.name,
@@ -826,7 +840,7 @@ function UsersPage() {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="All">All Roles</SelectItem>
-              {ALL_ROLES.map((r) => (
+              {roleChoices.map((r) => (
                 <SelectItem key={r} value={r}>{r}</SelectItem>
               ))}
             </SelectContent>
@@ -852,12 +866,12 @@ function UsersPage() {
               {selectedCount} selected
             </span>
             <div className="flex flex-wrap items-center gap-2">
-              <Select value={bulkRole} onValueChange={(v) => setBulkRole(v as Role)}>
+              <Select value={bulkRole} onValueChange={setBulkRole}>
                 <SelectTrigger className="h-8 w-[160px] text-xs">
                   <SelectValue placeholder="Select role" />
                 </SelectTrigger>
                 <SelectContent>
-                  {ALL_ROLES.map((r) => (
+                  {roleOptions.map((r) => (
                     <SelectItem key={r} value={r} className="text-xs">{r}</SelectItem>
                   ))}
                 </SelectContent>
@@ -942,7 +956,7 @@ function UsersPage() {
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        {ALL_ROLES.map((r) => (
+                        {roleChoices.map((r) => (
                           <SelectItem key={r} value={r} className="text-xs">{r}</SelectItem>
                         ))}
                       </SelectContent>

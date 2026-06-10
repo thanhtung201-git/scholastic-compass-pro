@@ -9,7 +9,8 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel,
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { LogOut, Bell, Search, Loader2, KeyRound } from "lucide-react";
+import { LogOut, Search, Loader2, KeyRound } from "lucide-react";
+import { NotificationBell } from "@/components/notification-bell";
 import { supabase } from "@/lib/supabase";
 
 export const Route = createFileRoute("/_app")({
@@ -196,10 +197,7 @@ function AppLayout() {
             </div>
             <div className="flex-1 md:hidden" />
             <div className="flex items-center gap-2">
-              <Button variant="ghost" size="icon" className="size-9 relative">
-                <Bell className="size-4" />
-                <span className="absolute top-2 right-2 size-1.5 rounded-full bg-destructive" />
-              </Button>
+              <NotificationBell />
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <button className="flex items-center gap-2 rounded-md px-1.5 py-1 hover:bg-muted transition">
