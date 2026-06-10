@@ -21,6 +21,26 @@ import { createClient } from "@supabase/supabase-js";
 
 export const Route = createFileRoute("/_app/users")({ component: UsersPage });
 
+// ─── Gửi email chào mừng tài khoản mới ───────────────────────────────────────
+
+async function sendInviteEmail(params: {
+  to_email:      string;
+  full_name:     string;
+  role:          string;
+  department:    string;
+  branch_name:   string;
+  contract_type: string;
+  start_date:    string;
+}): Promise<{ ok: boolean; message: string }> {
+  try {
+    const { error } = await supabase.functions.invoke("send-invite-smtp", { body: params });
+    if (error) return { ok: false, message: error.message };
+    return { ok: true, message: `Đã gửi email tới ${params.to_email}` };
+  } catch (err: any) {
+    return { ok: false, message: err.message };
+  }
+}
+
 // ─── Invite / Add User Dialog ─────────────────────────────────────────────────
 
 function InviteUserDialog() {
@@ -106,16 +126,13 @@ function InviteUserDialog() {
 
     try {
       // ── Step 1: Create auth account using an isolated client ─────────────
-      // persistSession: false means this client never writes to localStorage
-      // and never fires auth state change events — the admin stays logged in
-      // and the form is completely unaffected.
-      const anonKey  = (supabase as any).supabaseKey  as string;
+      const anonKey     = (supabase as any).supabaseKey  as string;
       const supabaseUrl = (supabase as any).supabaseUrl as string;
 
       const tempClient = createClient(supabaseUrl, anonKey, {
         auth: {
-          persistSession:    false,
-          autoRefreshToken:  false,
+          persistSession:     false,
+          autoRefreshToken:   false,
           detectSessionInUrl: false,
         },
       });
@@ -131,7 +148,7 @@ function InviteUserDialog() {
 
       const authId = signUpData.user.id;
 
-      // ── Step 2: Upsert into public.users with the new auth ID ─────────────
+      // ── Step 2: Upsert into public.users ──────────────────────────────────
       const { data: newUser, error: userErr } = await supabase
         .from("users")
         .upsert({
@@ -140,7 +157,7 @@ function InviteUserDialog() {
           email:     formData.email.trim(),
           role:      formData.role,
           branch_id: formData.branch_id || null,
-          status:    "Active",  // only 'Active' or 'Blocked' allowed
+          status:    "Active",
         }, { onConflict: "id" })
         .select("id")
         .single();
@@ -150,7 +167,6 @@ function InviteUserDialog() {
       }
 
       // ── Step 3: Insert into employee table ───────────────────────────────
-      // DB trigger (update_employee_full_name) auto-fills full_name from users.name
       const { error: empErr } = await supabase.from("employee").insert({
         user_id:       newUser.id,
         phone_number:  formData.phone_number.trim() || null,
@@ -168,8 +184,26 @@ function InviteUserDialog() {
         throw new Error(empErr.message);
       }
 
+      // ── Step 4: Gửi email thông báo tài khoản ────────────────────────────
+      const selectedBranch = branches.find((b) => b.id === formData.branch_id);
+      const emailResult = await sendInviteEmail({
+        to_email:      formData.email.trim(),
+        full_name:     formData.full_name.trim(),
+        role:          formData.role,
+        department:    formData.department,
+        branch_name:   selectedBranch?.name.replace("MCNAEdu — ", "") ?? "",
+        contract_type: formData.contract_type,
+        start_date:    formData.start_date,
+      });
+
       setOpen(false);
       reset();
+
+      if (emailResult.ok) {
+        toast.success(`✅ Đã tạo tài khoản và gửi email tới ${formData.email}`);
+      } else {
+        toast.warning(`✅ Tạo tài khoản thành công, nhưng gửi email thất bại: ${emailResult.message}`);
+      }
     } catch (err: any) {
       setError(err.message ?? "An unexpected error occurred");
     } finally {
@@ -196,7 +230,7 @@ function InviteUserDialog() {
           )}
 
           <div className="grid grid-cols-2 gap-4">
-            {/* Full Name → saved as users.name */}
+            {/* Full Name */}
             <div className="space-y-2">
               <Label>Full Name</Label>
               <Input
@@ -227,7 +261,7 @@ function InviteUserDialog() {
               />
             </div>
 
-            {/* Role — auto-fills Department */}
+            {/* Role */}
             <div className="space-y-2">
               <Label>Role</Label>
               <Select
@@ -267,7 +301,7 @@ function InviteUserDialog() {
               </Select>
             </div>
 
-            {/* Department — auto-selected by role, but can be overridden */}
+            {/* Department */}
             <div className="space-y-2">
               <Label>Department</Label>
               <Select
@@ -436,7 +470,7 @@ function ImportUsersDialog({ onImportSuccess }: { onImportSuccess: () => void })
     const workbook = xlsx.read(buffer, { type: "array", cellDates: true });
     const sheet = workbook.Sheets[workbook.SheetNames[0]];
     const rawRows = xlsx.utils.sheet_to_json<Record<string, any>>(sheet, { defval: "" });
-    
+
     const branchNames = branches.map(b => b.name.replace("MCNAEdu — ", ""));
 
     const parsed = rawRows.map((row, index) => {
@@ -444,7 +478,7 @@ function ImportUsersDialog({ onImportSuccess }: { onImportSuccess: () => void })
       if (phone.length === 9 && !phone.startsWith("0")) {
         phone = "0" + phone;
       }
-      
+
       const startDate = parseExcelDate(row.start_date, xlsx);
       const baseSalary = Number(row.base_salary);
       const bonusSalary = row.bonus_salary !== "" && row.bonus_salary !== undefined ? Number(row.bonus_salary) : 0;
@@ -486,8 +520,8 @@ function ImportUsersDialog({ onImportSuccess }: { onImportSuccess: () => void })
 
     setLoading(true);
     let successCount = 0;
-    
-    // Auth clients
+    let emailFailCount = 0;
+
     const anonKey = (supabase as any).supabaseKey as string;
     const supabaseUrl = (supabase as any).supabaseUrl as string;
     const tempClient = createClient(supabaseUrl, anonKey, {
@@ -496,9 +530,8 @@ function ImportUsersDialog({ onImportSuccess }: { onImportSuccess: () => void })
 
     try {
       for (const row of validRows) {
-        // Find branch_id
         const branch = branches.find(b => b.name.replace("MCNAEdu — ", "") === row.branch_name);
-        if (!branch) continue; // Should be caught by validation
+        if (!branch) continue;
 
         const dept = roleMappings[row.role] || "";
 
@@ -538,10 +571,28 @@ function ImportUsersDialog({ onImportSuccess }: { onImportSuccess: () => void })
           await supabase.from("users").delete().eq("id", newUser.id);
           throw new Error(`[Dòng ${row.rowNumber}] Lỗi thêm Employee: ${empErr.message}`);
         }
+
+        // 4. Gửi email chào mừng
+        const emailResult = await sendInviteEmail({
+          to_email:      row.email.trim(),
+          full_name:     row.full_name.trim(),
+          role:          row.role,
+          department:    dept,
+          branch_name:   branch.name.replace("MCNAEdu — ", ""),
+          contract_type: row.contract_type,
+          start_date:    row.start_date,
+        });
+        if (!emailResult.ok) emailFailCount++;
+
         successCount++;
       }
-      
-      toast.success(`Import hoàn tất (${successCount} nhân viên).`);
+
+      if (emailFailCount > 0) {
+        toast.warning(`Import hoàn tất (${successCount} nhân viên). Lưu ý: ${emailFailCount} email gửi thất bại.`);
+      } else {
+        toast.success(`Import hoàn tất (${successCount} nhân viên). Đã gửi email thông báo tới tất cả.`);
+      }
+
       onImportSuccess();
       setImportRows([]);
       setOpen(false);
@@ -632,7 +683,7 @@ function UsersPage() {
   } = useDatabase();
   const [page, setPage] = useState(1);
   const pageSize = 15;
-  
+
   const [searchTerm, setSearchTerm] = useState("");
   const [roleFilter, setRoleFilter] = useState("All");
   const [departmentFilter, setDepartmentFilter] = useState("All");
@@ -648,7 +699,7 @@ function UsersPage() {
       if (data) {
         const mapping: Record<string, string> = {};
         const depts = new Set<string>();
-        data.forEach((r: any) => { 
+        data.forEach((r: any) => {
           mapping[r.role_name] = r.department_name;
           if (r.department_name) depts.add(r.department_name);
         });
@@ -661,7 +712,7 @@ function UsersPage() {
 
   const filteredUsers = React.useMemo(() => {
     return users.filter((u: any) => {
-      const matchSearch = (u.name || "").toLowerCase().includes(searchTerm.toLowerCase()) || 
+      const matchSearch = (u.name || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
                           (u.email || "").toLowerCase().includes(searchTerm.toLowerCase());
       const matchRole = roleFilter === "All" || u.role === roleFilter;
       const userDept = roleMappings[u.role] || "";
@@ -673,13 +724,8 @@ function UsersPage() {
   const totalPages = Math.ceil(filteredUsers.length / pageSize) || 1;
   const paginatedUsers = filteredUsers.slice((page - 1) * pageSize, page * pageSize);
 
-  useEffect(() => {
-    setPage(1); // Reset page on filter change
-  }, [searchTerm, roleFilter, departmentFilter]);
-
-  useEffect(() => {
-    setSelectedIds(new Set());
-  }, [page, searchTerm, roleFilter, departmentFilter]);
+  useEffect(() => { setPage(1); }, [searchTerm, roleFilter, departmentFilter]);
+  useEffect(() => { setSelectedIds(new Set()); }, [page, searchTerm, roleFilter, departmentFilter]);
 
   const isAdmin = currentUser?.role === "Admin";
   const selectableOnPage = paginatedUsers.filter((u) => u.id !== currentUser?.id);
@@ -715,7 +761,6 @@ function UsersPage() {
   };
 
   const clearSelection = () => setSelectedIds(new Set());
-
   const getSelectedUsers = () => users.filter((u) => selectedIds.has(u.id));
 
   const handleBulkRoleChange = async () => {
@@ -811,12 +856,12 @@ function UsersPage() {
           </div>
         }
       />
-      
+
       <Card className="p-4">
         <div className="flex flex-wrap gap-4 items-center">
-          <Input 
-            placeholder="Search name or email..." 
-            value={searchTerm} 
+          <Input
+            placeholder="Search name or email..."
+            value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="w-full sm:max-w-xs"
           />
@@ -848,9 +893,7 @@ function UsersPage() {
       <Card className="p-0 overflow-hidden">
         {isAdmin && selectedCount > 0 && (
           <div className="flex flex-wrap items-center gap-3 border-b bg-muted/40 px-4 py-3">
-            <span className="text-sm font-medium">
-              {selectedCount} selected
-            </span>
+            <span className="text-sm font-medium">{selectedCount} selected</span>
             <div className="flex flex-wrap items-center gap-2">
               <Select value={bulkRole} onValueChange={(v) => setBulkRole(v as Role)}>
                 <SelectTrigger className="h-8 w-[160px] text-xs">
@@ -876,13 +919,7 @@ function UsersPage() {
                 Delete
               </Button>
             </div>
-            <Button
-              size="sm"
-              variant="ghost"
-              className="ml-auto"
-              disabled={bulkLoading}
-              onClick={clearSelection}
-            >
+            <Button size="sm" variant="ghost" className="ml-auto" disabled={bulkLoading} onClick={clearSelection}>
               <X className="mr-1 size-3.5" />
               Clear
             </Button>
