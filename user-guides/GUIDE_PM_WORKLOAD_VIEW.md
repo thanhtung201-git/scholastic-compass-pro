@@ -1,0 +1,3 @@
+# 📘 Workload View Guide\n\n> **Module:** Workload View\n> **Section:** Project Management\n> **Access Levels:** All Roles\n\n---\n\n## 🌐 Overview\nMonitor team capacity to ensure tasks are distributed evenly.\n\n## ✨ Key Features\n- Visual workload grid\n- Color-coded capacity indicators\n\n---\n\n## 🚀 Step-by-Step Instructions\n\n### Checking Workload\n\n1. Click **Workload View**.
+2. Review the number of tasks assigned to each user.
+3. Look for red indicators (heavy workload) to reassign tasks if necessary.\n\n---\n*For further assistance, refer to the main User Guide or contact your System Administrator.*\n

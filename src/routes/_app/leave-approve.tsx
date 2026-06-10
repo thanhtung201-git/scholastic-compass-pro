@@ -12,15 +12,32 @@ import {
 } from "@/components/ui/table";
 import { Loader2, Plus, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
+import { notifyLeaveDecision, notifyLeaveSubmitted } from "@/lib/notifications";
 import { supabase } from "@/lib/supabase";
 
 export const Route = createFileRoute("/_app/leave-approve")({
   component: LeaveApprovePage,
 });
 
-const HR_ROLES = ["HR Manager", "HR Staff"];
-
 type LeaveStatus = "PENDING" | "APPROVED" | "REJECTED";
+type LeaveViewScope = "self" | "department" | "all";
+type LeaveApproveScope = "none" | "department" | "all";
+
+type RoleLeavePermission = {
+  level: number | null;
+  leave_view_scope: LeaveViewScope;
+  leave_create_scope: LeaveViewScope;
+  leave_approve_scope: LeaveApproveScope;
+  leave_approve_levels: number[] | null;
+};
+
+const DEFAULT_ROLE_LEAVE_PERMISSION: RoleLeavePermission = {
+  level: 3,
+  leave_view_scope: "self",
+  leave_create_scope: "self",
+  leave_approve_scope: "none",
+  leave_approve_levels: [],
+};
 
 type CurrentEmployee = {
   id: string | number;
@@ -121,13 +138,13 @@ function ConfirmDialog({
 function AddLeaveDialog({
   currentEmployee,
   employees,
-  isHR,
+  canCreateForOthers,
   onClose,
   onCreated,
 }: {
   currentEmployee: CurrentEmployee;
   employees: EmployeeOption[];
-  isHR: boolean;
+  canCreateForOthers: boolean;
   onClose: () => void;
   onCreated: () => void;
 }) {
@@ -138,14 +155,14 @@ function AddLeaveDialog({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const selectedEmployee = isHR
+  const selectedEmployee = canCreateForOthers
     ? employees.find((employee) => String(employee.id) === selectedEmployeeId)
     : currentEmployee;
-  const requestEmployeeId = isHR ? selectedEmployeeId : currentEmployee.id;
+  const requestEmployeeId = canCreateForOthers ? selectedEmployeeId : currentEmployee.id;
 
   const canSubmit = Boolean(
     requestEmployeeId &&
-    (!isHR || selectedEmployee) &&
+    (!canCreateForOthers || selectedEmployee) &&
     reason.trim() &&
     startDate &&
     endDate &&
@@ -164,19 +181,31 @@ function AddLeaveDialog({
     setSaving(true);
     setError(null);
 
-    const { error: insertError } = await supabase.from("leave_approve").insert({
-      employee_id: requestEmployeeId,
-      reason: reason.trim(),
-      start_date: startDate,
-      end_date: endDate,
-      status: "PENDING",
-    });
+    const { data, error: insertError } = await supabase
+      .from("leave_approve")
+      .insert({
+        employee_id: requestEmployeeId,
+        reason: reason.trim(),
+        start_date: startDate,
+        end_date: endDate,
+        status: "PENDING",
+      })
+      .select("id")
+      .single();
 
     setSaving(false);
 
     if (insertError) {
       setError(insertError.message);
       return;
+    }
+
+    if (data) {
+      await notifyLeaveSubmitted({
+        leaveId: data.id,
+        requestEmployeeId,
+        requesterName: selectedEmployee?.full_name ?? currentEmployee.full_name,
+      });
     }
 
     onCreated();
@@ -203,7 +232,7 @@ function AddLeaveDialog({
         </div>
 
         <div className="space-y-4 px-6 py-5">
-          {isHR ? (
+          {canCreateForOthers ? (
             <label className="block space-y-1.5">
               <span className="text-sm font-medium text-gray-700">Employee</span>
               <select
@@ -235,7 +264,7 @@ function AddLeaveDialog({
             </div>
           )}
 
-          {isHR && selectedEmployee && (
+          {canCreateForOthers && selectedEmployee && (
             <div className="grid gap-3 rounded-lg border border-gray-200 bg-gray-50 p-4 text-sm">
               <div className="flex justify-between gap-4">
                 <span className="text-gray-500">Department</span>
@@ -312,7 +341,7 @@ function getErrorMessage(err: unknown) {
 function LeaveApprovePage() {
   const [records, setRecords] = useState<LeaveApproveRecord[]>([]);
   const [currentEmployee, setCurrentEmployee] = useState<CurrentEmployee | null>(null);
-  const [rolesMap, setRolesMap] = useState<Record<string, number>>({});
+  const [rolePermissions, setRolePermissions] = useState<Record<string, RoleLeavePermission>>({});
   const [employees, setEmployees] = useState<EmployeeOption[]>([]);
   const [departments, setDepartments] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
@@ -322,17 +351,14 @@ function LeaveApprovePage() {
   const [departmentFilter, setDepartmentFilter] = useState<string>("ALL");
   const [addDialogOpen, setAddDialogOpen] = useState(false);
 
-  const isHR = useMemo(
-    () => Boolean(currentEmployee && HR_ROLES.includes(currentEmployee.role)),
-    [currentEmployee],
-  );
+  const currentRolePermission = useMemo(() => {
+    if (!currentEmployee) return DEFAULT_ROLE_LEAVE_PERMISSION;
+    return rolePermissions[currentEmployee.role] ?? DEFAULT_ROLE_LEAVE_PERMISSION;
+  }, [currentEmployee, rolePermissions]);
 
-  const isLevel2 = useMemo(() => {
-    if (!currentEmployee) return false;
-    return rolesMap[currentEmployee.role] === 2;
-  }, [currentEmployee, rolesMap]);
-
-  const canViewAll = isHR;
+  const canViewAll = currentRolePermission.leave_view_scope === "all";
+  const canCreateForOthers = currentRolePermission.leave_create_scope !== "self";
+  const canManageLeave = currentRolePermission.leave_approve_scope !== "none";
 
   const [confirm, setConfirm] = useState<{
     id: string;
@@ -362,14 +388,40 @@ function LeaveApprovePage() {
     return data as CurrentEmployee;
   }
 
-  async function fetchRolesMap() {
-    const { data, error } = await supabase.from("roles").select("role_name, level");
+  function getRolePermission(
+    role: string | null | undefined,
+    permissions = rolePermissions,
+  ): RoleLeavePermission {
+    if (!role) return DEFAULT_ROLE_LEAVE_PERMISSION;
+    return permissions[role] ?? DEFAULT_ROLE_LEAVE_PERMISSION;
+  }
+
+  function scopeAllowsEmployee(scope: LeaveViewScope | LeaveApproveScope, employee: EmployeeOption | LeaveApproveRecord["employee"]) {
+    if (!currentEmployee || scope === "none") return false;
+    if (scope === "all") return true;
+    return (
+      scope === "department" &&
+      Boolean(employee?.department) &&
+      employee?.department?.trim().toLowerCase() === currentEmployee.department?.trim().toLowerCase()
+    );
+  }
+
+  async function fetchRolePermissions() {
+    const { data, error } = await supabase
+      .from("roles")
+      .select("role_name, level, leave_view_scope, leave_create_scope, leave_approve_scope, leave_approve_levels");
     if (error) throw error;
-    const map: Record<string, number> = {};
+    const map: Record<string, RoleLeavePermission> = {};
     for (const r of data) {
-      map[r.role_name] = r.level;
+      map[r.role_name] = {
+        level: r.level ?? 3,
+        leave_view_scope: r.leave_view_scope ?? "self",
+        leave_create_scope: r.leave_create_scope ?? "self",
+        leave_approve_scope: r.leave_approve_scope ?? "none",
+        leave_approve_levels: r.leave_approve_levels ?? null,
+      };
     }
-    setRolesMap(map);
+    setRolePermissions(map);
     return map;
   }
 
@@ -382,23 +434,30 @@ function LeaveApprovePage() {
     setDepartments(unique as string[]);
   }
 
-  async function fetchEmployees() {
-    const { data, error: employeesError } = await supabase
+  async function fetchEmployees(employee: CurrentEmployee, permission: RoleLeavePermission) {
+    let query = supabase
       .from("employee")
       .select("id, full_name, department, role, status")
       .order("full_name", { ascending: true });
+
+    if (permission.leave_create_scope === "department") {
+      query = query.eq("department", employee.department);
+    }
+
+    const { data, error: employeesError } = await query;
 
     if (employeesError) throw employeesError;
 
     setEmployees((data ?? []) as EmployeeOption[]);
   }
 
-  async function fetchLeaveRecords(employee: CurrentEmployee, currentRolesMap: Record<string, number>) {
-    const employeeLevel = currentRolesMap[employee.role] ?? 3;
-    const isEmpHR = HR_ROLES.includes(employee.role);
-    const isEmpLevel2 = employeeLevel === 2;
+  async function fetchLeaveRecords(
+    employee: CurrentEmployee,
+    currentRolePermissions: Record<string, RoleLeavePermission>,
+  ) {
+    const permission = getRolePermission(employee.role, currentRolePermissions);
 
-    if (!isEmpHR && !isEmpLevel2) {
+    if (permission.leave_view_scope === "self") {
       // Level 3 non-HR can only see their own
       let selfQuery = supabase
         .from("leave_approve")
@@ -429,7 +488,7 @@ function LeaveApprovePage() {
       return;
     }
 
-    // ── HR or Level 2 ─────────────────────────────────────────────────
+    // ── Scoped management view ────────────────────────────────────────
     //
     // WHY we pre-fetch employee IDs instead of filtering on the embedded
     // resource directly:
@@ -447,12 +506,11 @@ function LeaveApprovePage() {
     // works and is easy to reason about.
     // ──────────────────────────────────────────────────────────────────
 
-    // Step 1 – for level 2 or HR+department filter, narrow down to the
+    // Step 1 – for department scope or a department filter, narrow down to the
     //           relevant employee IDs before touching leave_approve.
     let scopedEmployeeIds: string[] | null = null;
 
-    if (!isEmpHR && isEmpLevel2) {
-      // Level 2 managers see every leave request from their own department.
+    if (permission.leave_view_scope === "department") {
       const { data: deptEmps, error: deptError } = await supabase
         .from("employee")
         .select("id")
@@ -467,8 +525,7 @@ function LeaveApprovePage() {
         setRecords([]);
         return;
       }
-    } else if (isEmpHR && departmentFilter !== "ALL") {
-      // HR has chosen a specific department in the dropdown.
+    } else if (permission.leave_view_scope === "all" && departmentFilter !== "ALL") {
       const { data: filteredEmps, error: deptError } = await supabase
         .from("employee")
         .select("id")
@@ -528,14 +585,15 @@ function LeaveApprovePage() {
     setError(null);
 
     try {
-      const map = await fetchRolesMap();
+      const permissions = await fetchRolePermissions();
       const employee = existingEmployee ?? (await fetchCurrentEmployee());
       setCurrentEmployee(employee);
+      const permission = getRolePermission(employee.role, permissions);
 
       await Promise.all([
-        fetchLeaveRecords(employee, map),
-        HR_ROLES.includes(employee.role)
-          ? Promise.all([fetchDepartments(), fetchEmployees()])
+        fetchLeaveRecords(employee, permissions),
+        permission.leave_create_scope !== "self"
+          ? Promise.all([fetchDepartments(), fetchEmployees(employee, permission)])
           : Promise.resolve(),
       ]);
     } catch (err: unknown) {
@@ -574,9 +632,19 @@ function LeaveApprovePage() {
       })
       .eq("id", id);
 
+    const record = records.find((item) => item.id === id);
+
     if (updateError) {
       alert("Lỗi: " + updateError.message);
     } else {
+      if (record) {
+        await notifyLeaveDecision({
+          leaveId: id,
+          employeeId: record.employee_id,
+          status: newStatus,
+          actorName: currentEmployee.full_name,
+        });
+      }
       await refreshData(currentEmployee);
     }
 
@@ -589,22 +657,13 @@ function LeaveApprovePage() {
     // Cannot approve own leave
     if (String(record.employee_id) === String(currentEmployee.id)) return false;
 
-    const recordRole = record.employee?.role;
-    const recordLevel = recordRole ? (rolesMap[recordRole] ?? 3) : 3;
-
-    if (isHR) {
-      // HR can approve level 2 and Director (level 1)
-      if (recordLevel === 1 || recordLevel === 2) {
-        return true;
-      }
-    } else if (isLevel2) {
-      // Level 2 can approve level 3 in their own department
-      if (record.employee?.department === currentEmployee.department && recordLevel === 3) {
-        return true;
-      }
+    if (!scopeAllowsEmployee(currentRolePermission.leave_approve_scope, record.employee)) {
+      return false;
     }
 
-    return false;
+    const recordPermission = getRolePermission(record.employee?.role);
+    const allowedLevels = currentRolePermission.leave_approve_levels;
+    return allowedLevels === null || allowedLevels.includes(recordPermission.level ?? 3);
   }
 
   return (
@@ -613,7 +672,7 @@ function LeaveApprovePage() {
         <PageHeader
           title="Leave Approve"
           description={
-            isHR || isLevel2
+            canManageLeave
               ? "Manage and approve employee leave requests"
               : "Create and track your leave requests"
           }
@@ -671,7 +730,7 @@ function LeaveApprovePage() {
                 <TableHead className="font-semibold">Thời gian</TableHead>
                 <TableHead className="font-semibold">Số ngày</TableHead>
                 <TableHead className="font-semibold">Trạng thái</TableHead>
-                {(isHR || isLevel2) && <TableHead className="font-semibold">Hành động quản lý</TableHead>}
+                {canManageLeave && <TableHead className="font-semibold">Hành động quản lý</TableHead>}
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -700,7 +759,7 @@ function LeaveApprovePage() {
                   <TableCell>
                     <StatusBadge status={record.status} />
                   </TableCell>
-                  {(isHR || isLevel2) && (
+                  {canManageLeave && (
                     <TableCell>
                       {record.status === "PENDING" ? (
                         canApprove ? (
@@ -769,7 +828,7 @@ function LeaveApprovePage() {
         <AddLeaveDialog
           currentEmployee={currentEmployee}
           employees={employees}
-          isHR={isHR}
+          canCreateForOthers={canCreateForOthers}
           onClose={() => setAddDialogOpen(false)}
           onCreated={async () => {
             setAddDialogOpen(false);

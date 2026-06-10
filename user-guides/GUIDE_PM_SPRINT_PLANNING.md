@@ -1,0 +1,4 @@
+# 📘 Sprint Planning Guide\n\n> **Module:** Sprint Planning\n> **Section:** Project Management\n> **Access Levels:** All Roles\n\n---\n\n## 🌐 Overview\nOrganize work into time-boxed sprints (Agile methodology).\n\n## ✨ Key Features\n- Create sprints\n- Move tasks from Backlog to Sprint\n- Start/End Sprints\n\n---\n\n## 🚀 Step-by-Step Instructions\n\n### Planning a Sprint\n\n1. Go to **Sprint Planning**.
+2. Click **+ New Sprint**.
+3. Drag tasks from the Backlog into the active sprint.
+4. Click **Start Sprint**.\n\n---\n*For further assistance, refer to the main User Guide or contact your System Administrator.*\n

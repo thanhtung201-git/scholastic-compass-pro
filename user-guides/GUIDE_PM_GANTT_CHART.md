@@ -1,0 +1,3 @@
+# 📘 Gantt Chart Guide\n\n> **Module:** Gantt Chart\n> **Section:** Project Management\n> **Access Levels:** All Roles\n\n---\n\n## 🌐 Overview\nTimeline-based view of tasks to visualize schedules and dependencies.\n\n## ✨ Key Features\n- Timeline visualization\n- Zoom (Day/Week/Month)\n\n---\n\n## 🚀 Step-by-Step Instructions\n\n### Viewing the Chart\n\n1. Click **Gantt Chart**.
+2. Use zoom controls to adjust the timeframe.
+3. Hover over bars to see task details.\n\n---\n*For further assistance, refer to the main User Guide or contact your System Administrator.*\n

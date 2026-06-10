@@ -1,0 +1,3 @@
+# 📘 Audit Logs Guide\n\n> **Module:** Audit Logs\n> **Section:** Administration\n> **Access Levels:** Admin\n\n---\n\n## 🌐 Overview\nReview a chronological history of all actions performed within the system for security and tracking.\n\n## ✨ Key Features\n- View action history\n- Filter by user, date, or action type\n\n---\n\n## 🚀 Step-by-Step Instructions\n\n### Reviewing Logs\n\n1. Click **Audit Logs**.
+2. Browse the table to see who performed what action and when.
+3. Use filters at the top to find specific events.\n\n---\n*For further assistance, refer to the main User Guide or contact your System Administrator.*\n

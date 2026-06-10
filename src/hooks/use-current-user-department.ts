@@ -5,9 +5,9 @@ import { supabase } from "@/lib/supabase";
 export function useCurrentUserDepartment() {
   const { user, loading: authLoading } = useAuth();
   const [department, setDepartment] = useState<string | null>(null);
+  const [canViewAllDepartments, setCanViewAllDepartments] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const canViewAllDepartments = user?.role === "Director";
 
   useEffect(() => {
     let active = true;
@@ -16,12 +16,7 @@ export function useCurrentUserDepartment() {
       if (authLoading) return;
       if (!user?.role) {
         setDepartment(null);
-        setLoading(false);
-        return;
-      }
-
-      if (user.role === "Director") {
-        setDepartment(null);
+        setCanViewAllDepartments(false);
         setLoading(false);
         return;
       }
@@ -31,7 +26,7 @@ export function useCurrentUserDepartment() {
 
       const { data, error: fetchError } = await supabase
         .from("roles")
-        .select("department_name")
+        .select("department_name, level")
         .eq("role_name", user.role)
         .maybeSingle();
 
@@ -40,8 +35,11 @@ export function useCurrentUserDepartment() {
       if (fetchError) {
         setError(fetchError.message);
         setDepartment(null);
+        setCanViewAllDepartments(user.role === "Director");
       } else {
-        setDepartment(data?.department_name?.trim() || null);
+        const viewAll = data?.level === 1 || user.role === "Director";
+        setCanViewAllDepartments(viewAll);
+        setDepartment(viewAll ? null : data?.department_name?.trim() || null);
       }
 
       setLoading(false);

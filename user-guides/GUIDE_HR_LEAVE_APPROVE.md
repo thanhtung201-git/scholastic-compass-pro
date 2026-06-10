@@ -1,0 +1,4 @@
+# 📘 Leave Approve Guide\n\n> **Module:** Leave Approve\n> **Section:** Human Resources\n> **Access Levels:** Director, Admin, HR Manager, HR Staff\n\n---\n\n## 🌐 Overview\nReview, approve, or reject employee leave requests.\n\n## ✨ Key Features\n- View pending leave requests\n- Approve/Reject actions\n- Integration with Attendance Tracking\n\n---\n\n## 🚀 Step-by-Step Instructions\n\n### Processing Requests\n\n1. Click **Leave Approve** in the sidebar.
+2. Review the list of pending requests.
+3. Click **Approve** or **Reject**.
+4. Add any necessary notes and confirm.\n\n---\n*For further assistance, refer to the main User Guide or contact your System Administrator.*\n

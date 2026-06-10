@@ -1,0 +1,4 @@
+# 📘 System Setup Guide\n\n> **Module:** System Setup\n> **Section:** Administration\n> **Access Levels:** Admin\n\n---\n\n## 🌐 Overview\nConfigure which roles have access to which modules across the ERP system.\n\n## ✨ Key Features\n- Role-based access control grid\n- Toggle module access instantly\n\n---\n\n## 🚀 Step-by-Step Instructions\n\n### Configuring Access\n\n1. Go to **System Setup**.
+2. You will see a grid with Modules as rows and Roles as columns.
+3. Toggle a switch ON to grant access to a module for that role.
+4. Changes save automatically.\n\n---\n*For further assistance, refer to the main User Guide or contact your System Administrator.*\n

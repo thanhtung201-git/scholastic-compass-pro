@@ -1,0 +1,3 @@
+# 📘 Sources Guide\n\n> **Module:** Sources\n> **Section:** Marketing\n> **Access Levels:** Director, Admin, Marketing Manager, Marketing Staff\n\n---\n\n## 🌐 Overview\nManage the list of channels where leads originate (e.g., Facebook, Google, Referrals).\n\n## ✨ Key Features\n- Add new sources\n- Enable/disable sources\n\n---\n\n## 🚀 Step-by-Step Instructions\n\n### Managing Sources\n\n1. Click **Sources**.
+2. Use **+ Add Source** to create a new one.
+3. Toggle the switch next to a source to enable or disable it for new leads.\n\n---\n*For further assistance, refer to the main User Guide or contact your System Administrator.*\n

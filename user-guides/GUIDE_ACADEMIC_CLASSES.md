@@ -1,0 +1,4 @@
+# 📘 Classes Guide\n\n> **Module:** Classes\n> **Section:** Academic\n> **Access Levels:** Director, Admin, Academic Manager, Academic Staff\n\n---\n\n## 🌐 Overview\nManage class listings, assign teachers, and set schedules and capacities.\n\n## ✨ Key Features\n- Create new classes\n- Assign teachers and rooms\n- Set maximum student capacity\n\n---\n\n## 🚀 Step-by-Step Instructions\n\n### Creating a Class\n\n1. Click **Classes** in the sidebar.
+2. Click **+ New Class**.
+3. Fill in Class Name, Teacher, Room, Schedule, and Max Students.
+4. Click **Save**.\n\n---\n*For further assistance, refer to the main User Guide or contact your System Administrator.*\n

@@ -1,0 +1,4 @@
+# 📘 Payroll Guide\n\n> **Module:** Payroll\n> **Section:** Finance & Accounting\n> **Access Levels:** Director, Admin, Finance Manager, Accountant\n\n---\n\n## 🌐 Overview\nProcess employee payroll, calculate total wages, and finalize pay periods.\n\n## ✨ Key Features\n- View payroll summaries\n- Process payroll for a given period\n- Review individual breakdowns\n\n---\n\n## 🚀 Step-by-Step Instructions\n\n### Processing Payroll\n\n1. Go to **Payroll** in the sidebar.
+2. View the summary for the current period.
+3. Click **Process Payroll** to generate salary records.
+4. Review the details and click **Confirm**.\n\n---\n*For further assistance, refer to the main User Guide or contact your System Administrator.*\n

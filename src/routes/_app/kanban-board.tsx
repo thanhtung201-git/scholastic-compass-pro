@@ -4,6 +4,7 @@ import { PageHeader } from "@/components/page-header";
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/lib/auth-context";
+import { notifyTaskAssigned } from "@/lib/notifications";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -111,7 +112,18 @@ function KanbanBoardPage() {
   };
 
   const handleAssign = async (taskId: string, userId: string) => {
+    const task = tasks.find((item) => item.id === taskId);
+    if (!task || task.assigned_to === userId) return;
+
     await supabase.from("tasks").update({ assigned_to: userId }).eq("id", taskId);
+    await notifyTaskAssigned({
+      assigneeUserId: userId,
+      actorUserId: user?.id,
+      actorName: user?.name ?? "Someone",
+      taskId,
+      taskTitle: task.title,
+      isReassignment: true,
+    });
     await fetchTasks();
   };
 
@@ -137,6 +149,15 @@ function KanbanBoardPage() {
     const { data, error } = await supabase.from("tasks").insert([payload]).select().single();
     setIsSubmitting(false);
     if (!error) {
+      if (data) {
+        await notifyTaskAssigned({
+          assigneeUserId: form.assigned_to,
+          actorUserId: user?.id,
+          actorName: user?.name ?? "Someone",
+          taskId: data.id,
+          taskTitle: data.title,
+        });
+      }
       setForm({ title: "", description: "", department: "", assigned_to: "", priority: "Medium", due_date: "" });
       setOpen(false);
       fetchTasks();
