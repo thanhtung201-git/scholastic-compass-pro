@@ -18,9 +18,8 @@ import { CalendarIcon, Plus, AlertCircle, Clock, CheckCircle2, Circle, List, Lay
 import { TaskDetailModal } from "@/components/tasks/TaskDetailModal";
 
 type TaskStatus = "Todo" | "In Progress" | "Review" | "Done";
-
 type Department = { id: string; department_name: string };
-type UserOption = { id: string; name: string };
+type UserOption = { id: string; name: string; email?: string };
 type Task = {
   id: string;
   title: string;
@@ -38,8 +37,7 @@ type Task = {
 
 const STATUSES: TaskStatus[] = ["Todo", "In Progress", "Review", "Done"];
 
-/** A user can assign tasks if their role level is not null and < some max assignable level.
- *  Any role with level < 3 (or whatever the deepest level is) can assign to roles one level below. */
+/** A user can assign tasks if their role level is not null and >= 1. */
 function canAssignOthers(userLevel: number | null): boolean {
   return userLevel !== null && userLevel >= 1;
 }
@@ -122,10 +120,10 @@ function PriorityBadge({ priority }: { priority: string }) {
 
 function StatusBadge({ status }: { status: string }) {
   const map: Record<string, { cls: string; icon: React.ReactNode }> = {
-    "Todo": { cls: "bg-gray-100 text-gray-600 border-gray-200", icon: <Circle className="size-3" /> },
-    "In Progress": { cls: "bg-blue-50 text-blue-700 border-blue-200", icon: <Clock className="size-3" /> },
-    "Review": { cls: "bg-purple-50 text-purple-700 border-purple-200", icon: <AlertCircle className="size-3" /> },
-    "Done": { cls: "bg-green-50 text-green-700 border-green-200", icon: <CheckCircle2 className="size-3" /> },
+    "Todo":        { cls: "bg-gray-100 text-gray-600 border-gray-200",   icon: <Circle className="size-3" /> },
+    "In Progress": { cls: "bg-blue-50 text-blue-700 border-blue-200",    icon: <Clock className="size-3" /> },
+    "Review":      { cls: "bg-purple-50 text-purple-700 border-purple-200", icon: <AlertCircle className="size-3" /> },
+    "Done":        { cls: "bg-green-50 text-green-700 border-green-200", icon: <CheckCircle2 className="size-3" /> },
   };
   const s = map[status] ?? map["Todo"];
   return <span className={`inline-flex items-center gap-1 text-xs font-medium border rounded-full px-2 py-0.5 ${s.cls}`}>{s.icon} {status}</span>;
@@ -162,19 +160,14 @@ function TaskAssignmentPage() {
   });
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [viewMode, setViewMode] = useState<"table" | "kanban">("table");
-  const [draggingId, setDraggingId] = useState<string | null>(null);
-  const [isUpdating, setIsUpdating] = useState(false);
-  const [modalTaskId, setModalTaskId] = useState<string | null>(null);
+  const [viewMode, setViewMode]         = useState<"table" | "kanban">("table");
+  const [draggingId, setDraggingId]     = useState<string | null>(null);
+  const [isUpdating, setIsUpdating]     = useState(false);
+  const [modalTaskId, setModalTaskId]   = useState<string | null>(null);
 
   const [form, setForm] = useState({
-    title: "",
-    description: "",
-    department: "",
-    assigned_to: "",
-    priority: "Medium",
-    due_date: "",
-    estimated_hours: 0,
+    title: "", description: "", department: "", assigned_to: "",
+    priority: "Medium", due_date: "", estimated_hours: 0,
   });
 
   const [sprints, setSprints] = useState<any[]>([]);
@@ -199,26 +192,13 @@ function TaskAssignmentPage() {
     supabase.from("department").select("id, department_name").then(({ data, error }) => {
       if (!error && data) setDepartments(data as Department[]);
     });
-    
-    // Fetch active sprints
-    supabase.from("sprints")
-      .select("id, name, status")
-      .in("status", ["Planning", "Active"])
-      .order("start_date", { ascending: false })
-      .then(({ data, error }) => {
-        if (!error && data) setSprints(data);
-      });
   }, []);
 
   const fetchTasks = async () => {
     if (!user?.id) return;
     const { data, error } = await buildTaskQuery(supabase, user.id, userLevel, userDeptName);
     if (!error && data) {
-      const shaped = (data as any[]).map((t) => ({
-        ...t,
-        assignee_name: t.users?.name ?? "—",
-      }));
-      setTasks(shaped);
+      setTasks((data as any[]).map((t) => ({ ...t, assignee_name: t.users?.name ?? "—" })));
     }
   };
 
@@ -249,25 +229,25 @@ function TaskAssignmentPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSubmitError(null);
-    if (!form.title.trim()) { setSubmitError("Title is required."); return; }
-    if (!form.department) { setSubmitError("Please select a department."); return; }
-    if (!form.assigned_to) { setSubmitError("Please select a user to assign this task to."); return; }
+    if (!form.title.trim())    { setSubmitError("Title is required."); return; }
+    if (!form.department)      { setSubmitError("Please select a department."); return; }
+    if (!form.assigned_to)     { setSubmitError("Please select a user to assign this task to."); return; }
 
-    const formattedDueDate = form.due_date && isValid(parseISO(form.due_date)) ? format(parseISO(form.due_date), "yyyy-MM-dd") : null;
+    const formattedDueDate = form.due_date && isValid(parseISO(form.due_date))
+      ? format(parseISO(form.due_date), "yyyy-MM-dd") : null;
     const deptObj = departments.find((d) => d.id === form.department);
     const departmentName = deptObj ? deptObj.department_name : null;
 
-    // Ép cứng sprint_id thành null để task luôn nằm trong Backlog của Sprint Planning
     const payload = {
-      title: form.title.trim(),
-      description: form.description.trim() || null,
-      department: departmentName,
-      assigned_to: form.assigned_to,
-      assigned_by: user?.id ?? null,
-      priority: form.priority,
-      status: "Todo",
-      due_date: formattedDueDate,
-      sprint_id: null, 
+      title:           form.title.trim(),
+      description:     form.description.trim() || null,
+      department:      departmentName,
+      assigned_to:     form.assigned_to,
+      assigned_by:     user?.id ?? null,
+      priority:        form.priority,
+      status:          "Todo",
+      due_date:        formattedDueDate,
+      sprint_id:       null,
       estimated_hours: form.estimated_hours > 0 ? form.estimated_hours : null,
     };
 
@@ -301,15 +281,8 @@ function TaskAssignmentPage() {
     fetchTasks();
   };
 
-  const handleDragStart = (e: React.DragEvent, id: string) => {
-    setDraggingId(id);
-    e.dataTransfer.effectAllowed = "move";
-  };
-
-  const handleDragOver = (e: React.DragEvent) => {
-    e.preventDefault();
-    e.dataTransfer.dropEffect = "move";
-  };
+  const handleDragStart = (e: React.DragEvent, id: string) => { setDraggingId(id); e.dataTransfer.effectAllowed = "move"; };
+  const handleDragOver  = (e: React.DragEvent) => { e.preventDefault(); e.dataTransfer.dropEffect = "move"; };
 
   const handleDrop = async (e: React.DragEvent, newStatus: string) => {
     e.preventDefault();
@@ -442,24 +415,12 @@ function TaskAssignmentPage() {
           <h1 className="text-2xl font-semibold">Task Management</h1>
           <p className="text-sm text-muted-foreground mt-0.5">Manage tasks and track progress</p>
         </div>
-
         <div className="flex items-center gap-3">
-          {/* View Toggle */}
           <div className="flex items-center gap-1 border rounded-lg p-1 bg-muted/50">
-            <button
-              onClick={() => setViewMode("table")}
-              className={`px-3 py-1.5 rounded transition-colors flex items-center gap-2 text-sm ${
-                viewMode === "table" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"
-              }`}
-            >
+            <button onClick={() => setViewMode("table")} className={`px-3 py-1.5 rounded transition-colors flex items-center gap-2 text-sm ${viewMode === "table" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}>
               <List className="size-4" /> Table
             </button>
-            <button
-              onClick={() => setViewMode("kanban")}
-              className={`px-3 py-1.5 rounded transition-colors flex items-center gap-2 text-sm ${
-                viewMode === "kanban" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"
-              }`}
-            >
+            <button onClick={() => setViewMode("kanban")} className={`px-3 py-1.5 rounded transition-colors flex items-center gap-2 text-sm ${viewMode === "kanban" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}>
               <LayoutGrid className="size-4" /> Kanban
             </button>
           </div>
@@ -470,55 +431,35 @@ function TaskAssignmentPage() {
               <DialogTrigger asChild>
                 <Button><Plus className="size-4 mr-2" /> New Task</Button>
               </DialogTrigger>
-
               <DialogContent className="sm:max-w-[520px]">
-                <DialogHeader>
-                  <DialogTitle>Create New Task</DialogTitle>
-                </DialogHeader>
-
+                <DialogHeader><DialogTitle>Create New Task</DialogTitle></DialogHeader>
                 <form onSubmit={handleSubmit} className="space-y-4 pt-2">
                   <div>
                     <label className="block text-sm font-medium mb-1">Title</label>
-                    <Input name="title" value={form.title} onChange={(e) => setForm((p) => ({ ...p, title: e.target.value }))} required />
+                    <Input value={form.title} onChange={(e) => setForm((p) => ({ ...p, title: e.target.value }))} required />
                   </div>
-
                   <div>
                     <label className="block text-sm font-medium mb-1">Description</label>
-                    <Textarea name="description" value={form.description} onChange={(e) => setForm((p) => ({ ...p, description: e.target.value }))} rows={3} />
+                    <Textarea value={form.description} onChange={(e) => setForm((p) => ({ ...p, description: e.target.value }))} rows={3} />
                   </div>
-
                   <div>
                     <label className="block text-sm font-medium mb-1">Department</label>
                     <Select value={selectedDept} onValueChange={setSelectedDept}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select department" />
-                      </SelectTrigger>
+                      <SelectTrigger><SelectValue placeholder="Select department" /></SelectTrigger>
                       <SelectContent>
-                        {allowedDepts.map((d) => (
-                          <SelectItem key={d.id} value={d.id}>
-                            {d.department_name}
-                          </SelectItem>
-                        ))}
+                        {allowedDepts.map((d) => <SelectItem key={d.id} value={d.id}>{d.department_name}</SelectItem>)}
                       </SelectContent>
                     </Select>
                   </div>
-
                   <div>
                     <label className="block text-sm font-medium mb-1">Assign To</label>
                     <Select value={form.assigned_to} onValueChange={(v) => setForm((p) => ({ ...p, assigned_to: v }))} disabled={!selectedDept}>
-                      <SelectTrigger>
-                        <SelectValue placeholder={selectedDept ? "Select user" : "Select department first"} />
-                      </SelectTrigger>
+                      <SelectTrigger><SelectValue placeholder={selectedDept ? "Select user" : "Select department first"} /></SelectTrigger>
                       <SelectContent>
-                        {users.map((u) => (
-                          <SelectItem key={u.id} value={u.id}>
-                            {u.name}
-                          </SelectItem>
-                        ))}
+                        {users.map((u) => <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>)}
                       </SelectContent>
                     </Select>
                   </div>
-
                   <div>
                     <label className="block text-sm font-medium mb-1">Priority</label>
                     <Select value={form.priority} onValueChange={(v) => setForm((p) => ({ ...p, priority: v }))}>
@@ -531,49 +472,33 @@ function TaskAssignmentPage() {
                       </SelectContent>
                     </Select>
                   </div>
-
                   <div>
                     <label className="block text-sm font-medium mb-1">Due Date</label>
                     <div className="flex gap-2 items-center">
                       <Input placeholder="YYYY-MM-DD" value={form.due_date} onChange={(e) => setForm((p) => ({ ...p, due_date: e.target.value }))} className="flex-1" />
                       <Popover open={calendarOpen} onOpenChange={setCalendarOpen}>
                         <PopoverTrigger asChild>
-                          <Button type="button" variant="outline" size="icon" className="shrink-0" aria-label="Open calendar">
-                            <CalendarIcon className="size-4" />
-                          </Button>
+                          <Button type="button" variant="outline" size="icon" className="shrink-0"><CalendarIcon className="size-4" /></Button>
                         </PopoverTrigger>
                         <PopoverContent className="w-auto p-0" align="end" side="bottom">
                           <Calendar
                             mode="single"
-                            selected={
-                              form.due_date && isValid(parse(form.due_date, "yyyy-MM-dd", new Date()))
-                                ? parse(form.due_date, "yyyy-MM-dd", new Date())
-                                : undefined
-                            }
-                            onSelect={(date) => {
-                              setForm((p) => ({ ...p, due_date: date ? format(date, "yyyy-MM-dd") : "" }));
-                              setCalendarOpen(false);
-                            }}
+                            selected={form.due_date && isValid(parse(form.due_date, "yyyy-MM-dd", new Date())) ? parse(form.due_date, "yyyy-MM-dd", new Date()) : undefined}
+                            onSelect={(date) => { setForm((p) => ({ ...p, due_date: date ? format(date, "yyyy-MM-dd") : "" })); setCalendarOpen(false); }}
                             initialFocus
                           />
                         </PopoverContent>
                       </Popover>
                     </div>
                   </div>
-
                   <div className="flex justify-end gap-2 pt-2">
                     {submitError && (
                       <p className="text-sm text-red-600 flex-1 flex items-center gap-1">
-                        <AlertCircle className="size-4 shrink-0" />
-                        {submitError}
+                        <AlertCircle className="size-4 shrink-0" />{submitError}
                       </p>
                     )}
-                    <Button type="button" variant="outline" onClick={() => { setOpen(false); setSubmitError(null); }}>
-                      Cancel
-                    </Button>
-                    <Button type="submit" disabled={isSubmitting}>
-                      {isSubmitting ? "Creating…" : "Create Task"}
-                    </Button>
+                    <Button type="button" variant="outline" onClick={() => { setOpen(false); setSubmitError(null); }}>Cancel</Button>
+                    <Button type="submit" disabled={isSubmitting}>{isSubmitting ? "Creating…" : "Create Task"}</Button>
                   </div>
                 </form>
               </DialogContent>
@@ -595,48 +520,32 @@ function TaskAssignmentPage() {
         </div>
 
         <div className="flex gap-2 flex-wrap">
-        <div className="flex rounded-md border overflow-hidden text-sm">
-          {["All", "Todo", "In Progress", "Review", "Done"].map((s) => (
-            <button
-              key={s}
-              onClick={() => setFilterStatus(s)}
-              className={`px-3 py-1.5 border-r last:border-r-0 transition-colors ${
-                filterStatus === s
-                  ? "bg-primary text-primary-foreground font-medium"
-                  : "hover:bg-muted text-muted-foreground"
-              }`}
-            >
-              {s}
-            </button>
-          ))}
-        </div>
-
-        {userLevel === 1 && uniqueDeptNames.length > 0 && (
           <div className="flex rounded-md border overflow-hidden text-sm">
-            {["All", ...uniqueDeptNames].map((d) => (
-              <button
-                key={d}
-                onClick={() => setFilterDept(d)}
-                className={`px-3 py-1.5 border-r last:border-r-0 transition-colors ${
-                  filterDept === d
-                    ? "bg-primary text-primary-foreground font-medium"
-                    : "hover:bg-muted text-muted-foreground"
-                }`}
-              >
-                {d}
+            {["All", "Todo", "In Progress", "Review", "Done"].map((s) => (
+              <button key={s} onClick={() => setFilterStatus(s)}
+                className={`px-3 py-1.5 border-r last:border-r-0 transition-colors ${filterStatus === s ? "bg-primary text-primary-foreground font-medium" : "hover:bg-muted text-muted-foreground"}`}>
+                {s}
               </button>
             ))}
           </div>
-        )}
+
+          {userLevel === 1 && uniqueDeptNames.length > 0 && (
+            <div className="flex rounded-md border overflow-hidden text-sm">
+              {["All", ...uniqueDeptNames].map((d) => (
+                <button key={d} onClick={() => setFilterDept(d)}
+                  className={`px-3 py-1.5 border-r last:border-r-0 transition-colors ${filterDept === d ? "bg-primary text-primary-foreground font-medium" : "hover:bg-muted text-muted-foreground"}`}>
+                  {d}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
       </div>
 
       {/* Table View */}
       {viewMode === "table" && (
         filteredTasks.length === 0 ? (
-          <div className="text-center py-16 text-muted-foreground text-sm border rounded-lg">
-            No tasks found.
-          </div>
+          <div className="text-center py-16 text-muted-foreground text-sm border rounded-lg">No tasks found.</div>
         ) : (
           <div className="rounded-lg border overflow-hidden">
             <table className="w-full text-sm">
@@ -660,9 +569,7 @@ function TaskAssignmentPage() {
                   <tr key={task.id} className={`border-b last:border-0 hover:bg-muted/30 transition-colors ${i % 2 === 0 ? "" : "bg-muted/10"}`}>
                     <td className="px-4 py-3">
                       <div className="font-medium">{task.title}</div>
-                      {task.description && (
-                        <div className="text-xs text-muted-foreground mt-0.5 line-clamp-1">{task.description}</div>
-                      )}
+                      {task.description && <div className="text-xs text-muted-foreground mt-0.5 line-clamp-1">{task.description}</div>}
                     </td>
                     {userLevel === 1 && (
                       <td className="px-4 py-3 text-muted-foreground">{task.department}</td>
@@ -671,9 +578,7 @@ function TaskAssignmentPage() {
                     <td className="px-4 py-3"><PriorityBadge priority={task.priority} /></td>
                     <td className="px-4 py-3">
                       <div className="flex flex-col gap-1">
-                        <span className="text-muted-foreground">
-                          {task.due_date ? format(parseISO(task.due_date), "dd MMM yyyy") : "—"}
-                        </span>
+                        <span className="text-muted-foreground">{task.due_date ? format(parseISO(task.due_date), "dd MMM yyyy") : "—"}</span>
                         <DueBadge due_date={task.due_date} status={task.status} />
                       </div>
                     </td>
@@ -725,7 +630,8 @@ function TaskAssignmentPage() {
               {STATUSES.map((status) => {
                 const statusTasks = filteredTasks.filter((t) => t.status === status);
                 return (
-                  <div key={status} onDragOver={handleDragOver} onDrop={(e) => handleDrop(e, status)} className="flex-shrink-0 w-80 bg-muted rounded-lg p-4 min-h-[400px] flex flex-col">
+                  <div key={status} onDragOver={handleDragOver} onDrop={(e) => handleDrop(e, status)}
+                    className="flex-shrink-0 w-80 bg-muted rounded-lg p-4 min-h-[400px] flex flex-col">
                     <div className="mb-4 flex items-center justify-between">
                       <div>
                         <h3 className="font-semibold text-sm">{status}</h3>
