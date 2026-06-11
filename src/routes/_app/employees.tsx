@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { GuideButton } from "@/components/guide-button";
 import { PageHeader } from "@/components/page-header";
 import { Card } from "@/components/ui/card";
 import {
@@ -356,6 +357,7 @@ function EmployeesPage() {
         <h1 className="text-lg font-bold uppercase tracking-wide text-gray-800">
           Employee Profiles
         </h1>
+        <GuideButton />
       </div>
 
       {/* ── Search + Department filter ── */}

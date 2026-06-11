@@ -11,6 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { LogOut, Search, Loader2, KeyRound } from "lucide-react";
 import { NotificationBell } from "@/components/notification-bell";
+import { GlobalSearch } from "@/components/global-search";
 import { supabase } from "@/lib/supabase";
 
 export const Route = createFileRoute("/_app")({
@@ -190,10 +191,7 @@ function AppLayout() {
           <header className="h-14 border-b bg-card/50 backdrop-blur sticky top-0 z-30 flex items-center gap-3 px-3 md:px-6">
             <SidebarTrigger />
             <div className="hidden md:flex items-center gap-2 flex-1 max-w-md">
-              <div className="relative w-full">
-                <Search className="size-4 absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
-                <Input placeholder="Search students, classes, invoices…" className="pl-8 h-9 bg-muted/40 border-0" />
-              </div>
+              <GlobalSearch />
             </div>
             <div className="flex-1 md:hidden" />
             <div className="flex items-center gap-2">

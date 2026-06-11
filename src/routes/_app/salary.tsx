@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState, useCallback } from "react";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/lib/auth-context";
+import { GuideButton } from "@/components/guide-button";
 
 export const Route = createFileRoute("/_app/salary")({ component: SalaryRoute });
 
@@ -338,6 +339,7 @@ function SalaryPage() {
             <p className="text-sm text-gray-500 mt-0.5">Bảng quyết toán học phí quy đổi giờ thỉnh giảng</p>
           </div>
           <div className="flex items-center gap-2">
+            <GuideButton />
             <select value={month} onChange={(e) => setMonth(Number(e.target.value))}
               className="px-3 py-2 text-sm border border-gray-200 rounded-lg bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-purple-400">
               {MONTHS.map((m) => <option key={m} value={m}>Tháng {String(m).padStart(2, "0")}</option>)}
