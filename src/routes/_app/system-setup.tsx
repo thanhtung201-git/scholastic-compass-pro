@@ -16,7 +16,6 @@ import { Loader2, Plus, Pencil, Trash2, Save, Settings2, Building2, Briefcase, G
 import { useDatabase } from "@/hooks/use-database";
 import { useAuth } from "@/lib/auth-context";
 import { NAV_SECTIONS } from "@/lib/nav-config";
-import { ALL_ROLES } from "@/lib/types";
 import { toast } from "sonner";
 import { supabase } from "@/lib/supabase";
 
@@ -322,13 +321,23 @@ function ModuleAccessTab() {
       .map((item) => ({ ...item, section: section.label }))
   );
 
-  // Aggregate roles from DB; include any legacy roles already saved in module_access
+  // Menu Access is driven only by roles that exist in the database.
   const allRoleNames = useMemo(() => {
-    const fromDb = dbRoles.map((r: { role_name: string }) => r.role_name);
-    const fromSaved = Object.values(moduleAccess).flat() as string[];
-    const merged = fromDb.length > 0 ? [...fromDb, ...fromSaved] : [...ALL_ROLES, ...fromSaved];
-    return Array.from(new Set(merged)).sort((a, b) => a.localeCompare(b));
-  }, [dbRoles, moduleAccess]);
+    const fromDb = dbRoles
+      .map((r: { role_name: string }) => r.role_name?.trim())
+      .filter(Boolean);
+    return Array.from(new Set(fromDb)).sort((a, b) => a.localeCompare(b));
+  }, [dbRoles]);
+
+  const dbRoleSet = useMemo(() => new Set(allRoleNames), [allRoleNames]);
+
+  const sanitizeAccess = (access: Record<string, string[]>) =>
+    Object.fromEntries(
+      allModules.map((item) => [
+        item.key,
+        Array.from(new Set(access[item.key] ?? [])).filter((role) => dbRoleSet.has(role)),
+      ])
+    );
 
   // Group roles by department for quick-select bulk actions
   const departmentGroups = useMemo(() => {
@@ -344,11 +353,13 @@ function ModuleAccessTab() {
   useEffect(() => {
     const init: Record<string, string[]> = {};
     allModules.forEach((item) => {
-      init[item.key] = (moduleAccess[item.key] as string[]) ?? [...item.roles];
+      const savedRoles = moduleAccess[item.key] as string[] | undefined;
+      const defaultRoles = item.roles.filter((role) => dbRoleSet.has(role));
+      init[item.key] = (savedRoles ?? defaultRoles).filter((role) => dbRoleSet.has(role));
     });
     setLocalAccess(init);
     setDirty(false);
-  }, [moduleAccess]);
+  }, [moduleAccess, dbRoleSet]);
 
   const toggleRole = (moduleKey: string, role: string) => {
     setLocalAccess((prev) => {
@@ -378,7 +389,7 @@ function ModuleAccessTab() {
   const handleSave = async () => {
     setSaving(true);
     try {
-      await updateModuleAccess(localAccess);
+      await updateModuleAccess(sanitizeAccess(localAccess));
       setDirty(false);
     } catch (e) {
       // toast already handled in use-database
