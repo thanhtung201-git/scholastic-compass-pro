@@ -116,9 +116,10 @@ function AttendancePage() {
           >
             <SelectTrigger><SelectValue /></SelectTrigger>
             <SelectContent>
-              {attendanceLogs.map((l) => (
-                <SelectItem key={l.id} value={l.id}>{l.class_id.toUpperCase()} · {l.lesson_date}</SelectItem>
-              ))}
+              {attendanceLogs.map((l) => {
+                const cls = classes.find((c) => c.id === l.class_id);
+                return <SelectItem key={l.id} value={l.id}>{cls?.name || l.class_id} · {l.lesson_date}</SelectItem>;
+              })}
             </SelectContent>
           </Select>
           {log && (
